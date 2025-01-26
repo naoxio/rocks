@@ -1,0 +1,16 @@
+[
+{
+  "directory": "/home/wao/lyra/proj/quest/rocks",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-std=c99", "-Iinclude", "-I/usr/include/SDL2", "-Iclay", "-D_CRT_SECURE_NO_WARNINGS", "-o", "build/.objs/rocks/linux/x86_64/release/src/rocks.c.o", "src/rocks.c"],
+  "file": "src/rocks.c"
+},
+{
+  "directory": "/home/wao/lyra/proj/quest/rocks",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-std=c99", "-Iinclude", "-I/usr/include/SDL2", "-Iclay", "-D_CRT_SECURE_NO_WARNINGS", "-o", "build/.objs/rocks/linux/x86_64/release/src/renderer/sdl2_renderer.c.o", "src/renderer/sdl2_renderer.c"],
+  "file": "src/renderer/sdl2_renderer.c"
+},
+{
+  "directory": "/home/wao/lyra/proj/quest/rocks",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-std=c99", "-I/usr/include/SDL2", "-Iinclude", "-Iclay", "-o", "build/.objs/hello_world/linux/x86_64/release/examples/hello_world/main.c.o", "examples/hello_world/main.c"],
+  "file": "examples/hello_world/main.c"
+}]

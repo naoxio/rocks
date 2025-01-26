@@ -1,6 +1,7 @@
 // src/renderer/sdl2_renderer.c
 #include "renderer/sdl2_renderer.h"
 #include "clay.h"
+#include <string.h>
 
 typedef struct {
     SDL_Window* window;
@@ -28,6 +29,7 @@ static void render_rectangle(RocksSDL2Renderer* r, Clay_RenderCommand* cmd) {
     );
     SDL_RenderFillRectF(r->renderer, &rect);
 }
+
 static Clay_Dimensions rocks_sdl2_measure_text(Clay_StringSlice text, Clay_TextElementConfig* config, uintptr_t userData) {
     RocksSDL2Renderer* r = (RocksSDL2Renderer*)userData;
     
@@ -43,22 +45,18 @@ static Clay_Dimensions rocks_sdl2_measure_text(Clay_StringSlice text, Clay_TextE
         return (Clay_Dimensions){0, (float)TTF_FontHeight(font)};
     }
 
-    // Allocate buffer for text
-    char* buffer = malloc(text.length + 1);
+    char* buffer = SDL_strdup(text.chars);
     if (!buffer) {
         return (Clay_Dimensions){0, 0};
     }
 
-    memcpy(buffer, text.chars, text.length);
-    buffer[text.length] = '\0';
-
     int width = 0, height = 0;
     if (TTF_SizeUTF8(font, buffer, &width, &height) != 0) {
-        free(buffer);
+        SDL_free(buffer);
         return (Clay_Dimensions){0, 0};
     }
 
-    free(buffer);
+    SDL_free(buffer);
     return (Clay_Dimensions){.width = (float)width, .height = (float)height};
 }
 
