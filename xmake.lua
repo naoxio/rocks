@@ -19,11 +19,14 @@ target("rocks")
     add_headerfiles("include/*.h", "include/renderer/*.h")
     
     -- Core dependencies
-    add_links("SDL2", "SDL2_ttf")
+    add_links("SDL2", "SDL2_image", "SDL2_ttf", "SDL2_gfx")
     add_includedirs("/usr/include/SDL2")
     
     -- Clay dependency
     add_includedirs("clay", {public = true})
+
+    -- Define ROCKS_USE_SDL2 macro
+    add_defines("ROCKS_USE_SDL2")
 
     if is_plat("windows") then
         add_syslinks("user32", "gdi32")
@@ -40,7 +43,8 @@ target("hello_world")
     add_files("examples/hello_world/main.c")
     
     -- Link against SDL2 libraries
-    add_links("SDL2", "SDL2_ttf")
+    add_links("SDL2", "SDL2_image", "SDL2_ttf", "SDL2_gfx")
+
     add_includedirs("/usr/include/SDL2")
     add_includedirs("clay", {public = true})
 
