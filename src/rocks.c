@@ -1,11 +1,19 @@
-// rocks.c 
 #include "rocks.h"
 #include <stdlib.h>
 #include <stdio.h>
 
 #define DEFAULT_ARENA_SIZE (1024 * 1024 * 8) // 8MB
 
-static Rocks* g_rocks = NULL;
+// Define the global Rocks instance
+Rocks* g_rocks = NULL;
+
+#ifdef ROCKS_USE_SDL2
+// Get the SDL_Renderer from the global Rocks instance
+SDL_Renderer* rocks_get_renderer(void) {
+    if (!g_rocks) return NULL;
+    return g_rocks->renderer;
+}
+#endif
 
 static void begin_frame(Rocks* rocks) {
     Clay_SetLayoutDimensions((Clay_Dimensions){
@@ -28,7 +36,13 @@ static void end_frame(Rocks* rocks) {
     rocks_sdl2_render(rocks, rocks->current_frame_commands);
     #endif
 }
+
 Rocks* rocks_init(RocksConfig config) {
+    if (g_rocks) {
+        // If g_rocks is already initialized, return it
+        return g_rocks;
+    }
+
     Rocks* rocks = calloc(1, sizeof(Rocks));
     if (!rocks) return NULL;
 
@@ -74,6 +88,7 @@ Rocks* rocks_init(RocksConfig config) {
     }
     #endif
 
+    // Set the global Rocks instance
     g_rocks = rocks;
     return rocks;
 }
@@ -128,11 +143,11 @@ RocksTheme rocks_get_theme(Rocks* rocks) {
     return rocks->config.theme;
 }
 
-uint16_t rocks_load_font(const char* path, int size) {
+uint16_t rocks_load_font(const char* path, int size, uint16_t expected_id) {
     if (!g_rocks) return UINT16_MAX;
     
     #ifdef ROCKS_USE_SDL2
-    return rocks_sdl2_load_font(g_rocks, path, size);
+    return rocks_sdl2_load_font(g_rocks, path, size, expected_id);
     #else
     return UINT16_MAX;
     #endif

@@ -287,14 +287,8 @@ bool rocks_sdl2_init(Rocks* rocks, void* config) {
         return false;
     }
 
-    // Initialize Clay context if not already done
-    if (!Clay_GetCurrentContext()) {
-        printf("Error: Clay context is not initialized\n");
-        return false;
-    }
-
     RocksSDL2Config* sdl_config = (RocksSDL2Config*)config;
-    
+
     printf("Initializing SDL and TTF...\n");
     if (SDL_Init(SDL_INIT_VIDEO) < 0 || TTF_Init() < 0) {
         printf("Error: Failed to initialize SDL or TTF: %s\n", SDL_GetError());
@@ -309,8 +303,31 @@ bool rocks_sdl2_init(Rocks* rocks, void* config) {
 
     r->rocks = rocks;
     r->scale_factor = sdl_config->scale_factor;
-    
-    printf("Creating SDL window...\n");
+
+#ifdef CLAY_MOBILE
+    // Mobile-specific initialization
+    SDL_DisplayMode displayMode;
+    SDL_GetCurrentDisplayMode(0, &displayMode);
+
+    float ddpi, hdpi, vdpi;
+    if (SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi) != 0) {
+        ddpi = hdpi = vdpi = 160.0f;
+    }
+
+    r->scale_factor = ddpi / 160.0f;
+    rocks->config.window_width = displayMode.w / r->scale_factor;
+    rocks->config.window_height = displayMode.h / r->scale_factor;
+
+    r->window = SDL_CreateWindow(
+        rocks->config.window_title ? rocks->config.window_title : "Untitled",
+        SDL_WINDOWPOS_UNDEFINED,
+        SDL_WINDOWPOS_UNDEFINED,
+        displayMode.w,
+        displayMode.h,
+        SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN
+    );
+#else
+    // Desktop initialization
     r->window = SDL_CreateWindow(
         rocks->config.window_title ? rocks->config.window_title : "Untitled",
         SDL_WINDOWPOS_UNDEFINED,
@@ -319,6 +336,7 @@ bool rocks_sdl2_init(Rocks* rocks, void* config) {
         (int)(rocks->config.window_height * r->scale_factor),
         sdl_config->window_flags
     );
+#endif
 
     if (!r->window) {
         printf("Error: Failed to create window: %s\n", SDL_GetError());
@@ -349,13 +367,13 @@ bool rocks_sdl2_init(Rocks* rocks, void* config) {
     SDL_SetCursor(r->current_cursor);
 
     printf("Setting up text measurement function...\n");
-    // Ensure the userData is a valid pointer to the RocksSDL2Renderer instance
     Clay_SetMeasureTextFunction(rocks_sdl2_measure_text, (uintptr_t)r);
     rocks->renderer_data = r;
 
     printf("SDL2 renderer initialized successfully\n");
     return true;
 }
+
 void rocks_sdl2_cleanup(Rocks* rocks) {
     RocksSDL2Renderer* r = rocks->renderer_data;
     if (!r) return;
@@ -375,28 +393,37 @@ void rocks_sdl2_cleanup(Rocks* rocks) {
     TTF_Quit();
     SDL_Quit();
 }
-
-uint16_t rocks_sdl2_load_font(Rocks* rocks, const char* path, int size) {
+uint16_t rocks_sdl2_load_font(Rocks* rocks, const char* path, int size, uint16_t expected_id) {
     RocksSDL2Renderer* r = rocks->renderer_data;
     if (!r) return UINT16_MAX;
 
+    // Validate expected_id
+    if (expected_id >= 32) {
+        printf("ERROR: Invalid font ID %u (max 31)\n", expected_id);
+        return UINT16_MAX;
+    }
+
+    // Check if this slot is already taken
+    if (r->fonts[expected_id].font) {
+        printf("ERROR: Font ID %u is already in use\n", expected_id);
+        return UINT16_MAX;
+    }
+
     FILE* f = fopen(path, "rb");
     if (!f) {
+        printf("ERROR: Could not open font file: %s\n", path);
         return UINT16_MAX;
     }
     fclose(f);
     
-    for (uint16_t i = 0; i < 32; i++) {
-        if (!r->fonts[i].font) {
-            TTF_Font* font = TTF_OpenFont(path, size);
-            if (!font) {
-                return UINT16_MAX;
-            }
-            r->fonts[i].font = font;
-            return i;
-        }
+    TTF_Font* font = TTF_OpenFont(path, size);
+    if (!font) {
+        printf("ERROR: TTF_OpenFont failed for %s: %s\n", path, TTF_GetError());
+        return UINT16_MAX;
     }
-    return UINT16_MAX;
+
+    r->fonts[expected_id].font = font;
+    return expected_id;
 }
 
 void rocks_sdl2_unload_font(Rocks* rocks, uint16_t font_id) {
@@ -892,6 +919,11 @@ void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                     config->drawCallback(cmd, config->userData);
                 }
                 break;
+            }
+
+            default: {
+                fprintf(stderr, "Error: unhandled render command: %d\n", cmd->commandType);
+                exit(1);
             }
         }
     }
