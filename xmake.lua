@@ -36,18 +36,28 @@ target("rocks")
 
     add_defines("_CRT_SECURE_NO_WARNINGS")
 
--- Example targets
 target("hello_world")
     set_kind("binary")
     add_deps("rocks")
     add_files("examples/hello_world/main.c")
     
-    -- Link against SDL2 libraries
     add_links("SDL2", "SDL2_image", "SDL2_ttf", "SDL2_gfx")
-
     add_includedirs("/usr/include/SDL2")
     add_includedirs("clay", {public = true})
 
     after_build(function (target)
-        os.cp("$(projectdir)/examples/hello_world/assets", "$(buildir)/$(os)/$(arch)/$(mode)")
+        os.cp("$(projectdir)/examples/assets/", "$(buildir)/$(os)/$(arch)/$(mode)")
+    end)
+
+target("image_viewer")
+    set_kind("binary")
+    add_deps("rocks")
+    add_files("examples/image_viewer/main.c")
+    
+    add_links("SDL2", "SDL2_image", "SDL2_ttf", "SDL2_gfx")
+    add_includedirs("/usr/include/SDL2")
+    add_includedirs("clay", {public = true})
+
+    after_build(function (target)
+        os.cp("$(projectdir)/examples/assets/", "$(buildir)/$(os)/$(arch)/$(mode)")
     end)

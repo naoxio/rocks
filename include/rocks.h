@@ -28,4 +28,13 @@ void rocks_unload_font(uint16_t font_id);
 SDL_Renderer* rocks_get_renderer(void);
 #endif
 
+void* rocks_load_image(Rocks* rocks, const char* path);
+void rocks_unload_image(Rocks* rocks, void* image_data);
+Clay_Dimensions rocks_get_image_dimensions(Rocks* rocks, void* image_data);
+
+void rocks_set_theme(Rocks* rocks, RocksTheme theme);
+RocksTheme rocks_get_theme(Rocks* rocks);
+RocksTheme rocks_theme_default(void);
+
+
 #endif

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <SDL_ttf.h>
 #include <SDL2_gfxPrimitives.h>
+#include <SDL_image.h>
 
 // Constants
 static const float SCROLLBAR_FADE_DURATION = 0.6f;
@@ -58,6 +59,88 @@ typedef struct {
     Clay_Vector2 initial_scroll_position;
     Clay_Vector2 initial_pointer_position;
 } RocksSDL2Renderer;
+
+
+void* rocks_sdl2_load_image(Rocks* rocks, const char* path) {
+    RocksSDL2Renderer* r = rocks->renderer_data;
+    if (!r || !r->renderer) return NULL;
+
+    #if defined(CLAY_MOBILE)
+    AAssetManager* mgr = get_asset_manager();
+    if (!mgr) {
+        printf("Error: Cannot load image - no asset manager\n");
+        return NULL;
+    }
+
+    const char* asset_path = get_image_path(path);
+    AAsset* asset = AAssetManager_open(mgr, asset_path, AASSET_MODE_BUFFER);
+    if (!asset) {
+        printf("Error: Cannot open image asset: %s\n", asset_path);
+        return NULL;
+    }
+
+    off_t length = AAsset_getLength(asset);
+    void* buffer = malloc(length);
+    if (!buffer) {
+        AAsset_close(asset);
+        return NULL;
+    }
+
+    int read = AAsset_read(asset, buffer, length);
+    AAsset_close(asset);
+
+    if (read != length) {
+        free(buffer);
+        return NULL;
+    }
+
+    SDL_RWops* rw = SDL_RWFromMem(buffer, length);
+    if (!rw) {
+        free(buffer);
+        return NULL;
+    }
+
+    SDL_Surface* surface = IMG_Load_RW(rw, 1);
+    free(buffer);
+
+    #else
+    SDL_Surface* surface = IMG_Load(path);
+    #endif
+
+    if (!surface) {
+        printf("Failed to load image: %s\n", IMG_GetError());
+        return NULL;
+    }
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(r->renderer, surface);
+    SDL_FreeSurface(surface);
+
+    if (!texture) {
+        printf("Failed to create texture: %s\n", SDL_GetError());
+        return NULL;
+    }
+
+    return texture;
+}
+
+void rocks_sdl2_unload_image(Rocks* rocks, void* image_data) {
+    if (!image_data) return;
+    SDL_DestroyTexture((SDL_Texture*)image_data);
+}
+
+Clay_Dimensions rocks_sdl2_get_image_dimensions(Rocks* rocks, void* image_data) {
+    if (!image_data) return (Clay_Dimensions){0, 0};
+    
+    SDL_Texture* texture = (SDL_Texture*)image_data;
+    int w, h;
+    SDL_QueryTexture(texture, NULL, NULL, &w, &h);
+    
+    return (Clay_Dimensions){
+        .width = (float)w,
+        .height = (float)h
+    };
+}
+
 
 static Clay_ScrollContainerData* find_active_scroll_container(RocksSDL2Renderer* r, Clay_Vector2 pointerPosition) {
     Clay_SetPointerState(pointerPosition, false);
@@ -289,7 +372,7 @@ bool rocks_sdl2_init(Rocks* rocks, void* config) {
 
     RocksSDL2Config* sdl_config = (RocksSDL2Config*)config;
 
-    printf("Initializing SDL and TTF...\n");
+    printf("Initializing <SDL> and TTF...\n");
     if (SDL_Init(SDL_INIT_VIDEO) < 0 || TTF_Init() < 0) {
         printf("Error: Failed to initialize SDL or TTF: %s\n", SDL_GetError());
         return false;
@@ -416,7 +499,8 @@ uint16_t rocks_sdl2_load_font(Rocks* rocks, const char* path, int size, uint16_t
     }
     fclose(f);
     
-    TTF_Font* font = TTF_OpenFont(path, size);
+    TTF_Font* font = TTF_OpenFont(path, size * r->scale_factor);
+
     if (!font) {
         printf("ERROR: TTF_OpenFont failed for %s: %s\n", path, TTF_GetError());
         return UINT16_MAX;
@@ -771,10 +855,14 @@ void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
     mouseY /= r->scale_factor;
 
     // Process render commands
+
     for (uint32_t i = 0; i < commands.length; i++) {
         Clay_RenderCommand* cmd = Clay_RenderCommandArray_Get(&commands, i);
-        if (!cmd) continue;
-
+        if (!cmd) {
+            printf("Command %d: NULL command\n", i);
+            continue;
+        }
+        
         SDL_FRect scaledBox = ScaleBoundingBox(r->renderer, r->scale_factor, cmd->boundingBox);
 
         switch (cmd->commandType) {
@@ -806,7 +894,6 @@ void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                 );
                 break;
             }
-
             case CLAY_RENDER_COMMAND_TYPE_TEXT: {
                 Clay_TextElementConfig* config = cmd->config.textElementConfig;
                 if (!config || config->fontId >= 32 || !r->fonts[config->fontId].font) {
@@ -815,12 +902,25 @@ void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                     continue;
                 }
 
-                if (!cmd->text.chars || cmd->text.length == 0) continue;
+                if (!cmd->text.chars || cmd->text.length == 0) {
+                    printf("Error: No text to render\n");
+                    continue;
+                }
+
+
+                // Get current clip rect
+                SDL_Rect clip;
+                SDL_RenderGetClipRect(r->renderer, &clip);
+
+                TTF_Font* font = r->fonts[config->fontId].font;
 
                 // Aligned memory allocation for text
                 size_t bufferSize = cmd->text.length + 1;
                 char* text = (char*)SDL_AllocateAligned(8, bufferSize);
-                if (!text) continue;
+                if (!text) {
+                    printf("Failed to allocate text buffer\n");
+                    continue;
+                }
                 
                 memset(text, 0, bufferSize);
                 memcpy(text, cmd->text.chars, cmd->text.length);
@@ -831,22 +931,28 @@ void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                     config->textColor.b,
                     config->textColor.a
                 };
-
-                TTF_Font* font = r->fonts[config->fontId].font;
                 SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text, color);
-                if (surface) {
-                    SDL_Texture* texture = SDL_CreateTextureFromSurface(r->renderer, surface);
-                    if (texture) {
-                        SDL_RenderCopyF(r->renderer, texture, NULL, &scaledBox);
-                        SDL_DestroyTexture(texture);
-                    }
-                    SDL_FreeSurface(surface);
+                if (!surface) {
+                    printf("Failed to create text surface: %s\n", TTF_GetError());
+                    SDL_FreeAligned(text);
+                    continue;
                 }
-                
+
+                SDL_Texture* texture = SDL_CreateTextureFromSurface(r->renderer, surface);
+                if (!texture) {
+                    printf("Failed to create texture from surface: %s\n", SDL_GetError());
+                    SDL_FreeSurface(surface);
+                    SDL_FreeAligned(text);
+                    continue;
+                }
+                            
+                SDL_RenderCopyF(r->renderer, texture, NULL, &scaledBox);
+
+                SDL_DestroyTexture(texture);
+                SDL_FreeSurface(surface);
                 SDL_FreeAligned(text);
                 break;
             }
-
             case CLAY_RENDER_COMMAND_TYPE_BORDER: {
                 Clay_BorderElementConfig* config = cmd->config.borderElementConfig;
                 if (!config) continue;
@@ -903,16 +1009,17 @@ void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
             case CLAY_RENDER_COMMAND_TYPE_SCISSOR_END:
                 SDL_RenderSetClipRect(r->renderer, NULL);
                 break;
-
             case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
                 Clay_ImageElementConfig* config = cmd->config.imageElementConfig;
-                if (!config || !config->imageData) continue;
+                if (!config || !config->imageData) {
+                    printf("Error: Invalid image config or data\n");
+                    continue;
+                }
 
                 SDL_Texture* texture = (SDL_Texture*)config->imageData;
                 SDL_RenderCopyF(r->renderer, texture, NULL, &scaledBox);
                 break;
             }
-
             case CLAY_RENDER_COMMAND_TYPE_CUSTOM: {
                 Clay_CustomElementConfig* config = cmd->config.customElementConfig;
                 if (config && config->drawCallback) {

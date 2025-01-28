@@ -3,7 +3,6 @@
 #include "rocks.h"
 #include <stdio.h>
 
-
 enum {
     FONT_TITLE = 0,
     FONT_BODY = 1,
@@ -11,8 +10,9 @@ enum {
 };
 
 static uint16_t g_font_ids[FONT_COUNT];
+static void* g_alice_image;
 
-static bool load_fonts(void) {
+static bool load_resources(Rocks* rocks) {
     g_font_ids[FONT_TITLE] = rocks_load_font("assets/Roboto-Bold.ttf", 32, FONT_TITLE);
     if (g_font_ids[FONT_TITLE] == UINT16_MAX) {
         return false;
@@ -23,12 +23,23 @@ static bool load_fonts(void) {
         rocks_unload_font(g_font_ids[FONT_TITLE]);
         return false;
     }
+
+    g_alice_image = rocks_load_image(rocks, "assets/alice.jpg");
+    if (!g_alice_image) {
+        printf("Failed to load image\n");
+
+        rocks_unload_font(g_font_ids[FONT_TITLE]);
+        rocks_unload_font(g_font_ids[FONT_BODY]);
+        return false;
+    }
+    printf("Successfully loaded image: %p\n", g_alice_image);
     
     return true;
 }
 static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
     RocksTheme theme = rocks_get_theme(rocks);
-
+    Clay_Dimensions image_dims = rocks_get_image_dimensions(rocks, g_alice_image);
+    
     CLAY(CLAY_ID("MainContainer"), 
         CLAY_LAYOUT({
             .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
@@ -38,33 +49,33 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
         }),
         CLAY_RECTANGLE({ .color = theme.background })
     ) {
-        CLAY_TEXT(CLAY_STRING("Hello Rocks!"), CLAY_TEXT_CONFIG({
+        CLAY_TEXT(CLAY_STRING("Alice in Wonderland"), CLAY_TEXT_CONFIG({
             .textColor = theme.text,
             .fontSize = 32,
             .fontId = g_font_ids[FONT_TITLE]
         }));
 
-        CLAY(CLAY_ID("Button"),
+        CLAY(CLAY_ID("ImageContainer"),
             CLAY_LAYOUT({
-                .sizing = { CLAY_SIZING_FIXED(200), CLAY_SIZING_FIXED(50) },
+                .sizing = { CLAY_SIZING_FIXED(400), CLAY_SIZING_FIXED(300) },
                 .childAlignment = { CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER }
             }),
-            CLAY_RECTANGLE({ 
-                .color = theme.primary,
-                .cursorPointer = true
-            })
-        ) {
-            CLAY_TEXT(CLAY_STRING("Click Me!"), CLAY_TEXT_CONFIG({
-                .textColor = theme.text,
-                .fontSize = 16,
-                .fontId = g_font_ids[FONT_BODY]
-            }));
-        }
+            CLAY_IMAGE({
+                .imageData = g_alice_image,
+                .sourceDimensions = image_dims
+            })) {}
+
+        CLAY_TEXT(CLAY_STRING("Down the Rabbit Hole"), CLAY_TEXT_CONFIG({
+            .textColor = theme.text_secondary,
+            .fontSize = 16,
+            .fontId = g_font_ids[FONT_BODY]
+        }));
     }
 
     Clay_RenderCommandArray commands = Clay_EndLayout();
     return commands;
 }
+
 int main(void) {
     RocksSDL2Config sdl_config = {
         .window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE,
@@ -77,29 +88,24 @@ int main(void) {
     RocksConfig config = {
         .window_width = 800,
         .window_height = 600,
-        .window_title = "Hello Rocks!",
-        .renderer_config = &sdl_config,  // Pass SDL config
-        .theme = {
-            .primary = (Clay_Color){66, 135, 245, 255},
-            .primary_hover = (Clay_Color){87, 150, 255, 255},
-            .secondary = (Clay_Color){45, 45, 45, 255},
-            .text = (Clay_Color){255, 255, 255, 255},
-            .text_secondary = (Clay_Color){180, 180, 180, 255},
-            .scrollbar_track = (Clay_Color){40, 40, 40, 200},
-            .scrollbar_thumb = (Clay_Color){80, 80, 80, 255},
-            .scrollbar_thumb_hover = (Clay_Color){100, 100, 100, 255}
-        }
+        .window_title = "Alice in Wonderland",
+        .renderer_config = &sdl_config,
+        .theme = rocks_theme_default()
     };
 
     Rocks* rocks = rocks_init(config);
     if (!rocks) return 1;
 
-    if (!load_fonts()) {
+    if (!load_resources(rocks)) {
         rocks_cleanup(rocks);
         return 1;
     }
 
     rocks_run(rocks, update);
+
+    rocks_unload_image(rocks, g_alice_image);
+    rocks_unload_font(g_font_ids[FONT_TITLE]);
+    rocks_unload_font(g_font_ids[FONT_BODY]);
     rocks_cleanup(rocks);
     
     return 0;

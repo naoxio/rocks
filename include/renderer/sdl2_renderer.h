@@ -23,6 +23,10 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event);
 void rocks_sdl2_process_events(Rocks* rocks);
 void rocks_sdl2_toggle_fullscreen(Rocks* rocks);
 void rocks_sdl2_set_window_size(Rocks* rocks, int width, int height);
+
+void* rocks_sdl2_load_image(Rocks* rocks, const char* path);
+void rocks_sdl2_unload_image(Rocks* rocks, void* image_data);
+Clay_Dimensions rocks_sdl2_get_image_dimensions(Rocks* rocks, void* image_data);
 #endif
 
 #endif

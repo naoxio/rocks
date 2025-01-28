@@ -18,17 +18,28 @@ typedef struct {
     float deltaTime;
 } RocksInputState;
 
+
 typedef struct {
+    // Base theme colors that the library needs
+    Clay_Color background;
+    Clay_Color background_hover;
+    Clay_Color background_focused;
     Clay_Color primary;
     Clay_Color primary_hover;
+    Clay_Color primary_focused;
     Clay_Color secondary;
-    Clay_Color panel;
+    Clay_Color secondary_hover;
+    Clay_Color secondary_focused;
     Clay_Color text;
     Clay_Color text_secondary;
     Clay_Color scrollbar_track;
     Clay_Color scrollbar_thumb;
     Clay_Color scrollbar_thumb_hover;
+    
+    // Extension point for applications
+    void* extension;
 } RocksTheme;
+
 
 typedef struct {
     uint32_t window_width;

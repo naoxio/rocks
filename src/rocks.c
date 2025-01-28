@@ -29,13 +29,6 @@ static void begin_frame(Rocks* rocks) {
     Clay_BeginLayout();
 }
 
-static void end_frame(Rocks* rocks) {
-    rocks->current_frame_commands = Clay_EndLayout();
-    
-    #ifdef ROCKS_USE_SDL2
-    rocks_sdl2_render(rocks, rocks->current_frame_commands);
-    #endif
-}
 
 Rocks* rocks_init(RocksConfig config) {
     if (g_rocks) {
@@ -104,7 +97,6 @@ void rocks_cleanup(Rocks* rocks) {
     free(rocks);
     g_rocks = NULL;
 }
-
 void rocks_run(Rocks* rocks, RocksUpdateFunction update) {
     #ifdef ROCKS_USE_SDL2
     float last_time = SDL_GetTicks() / 1000.0f;
@@ -130,18 +122,14 @@ void rocks_run(Rocks* rocks, RocksUpdateFunction update) {
         #endif
 
         begin_frame(rocks);
-        rocks->current_frame_commands = update(rocks, rocks->input.deltaTime);
-        end_frame(rocks);
+        Clay_RenderCommandArray commands = update(rocks, rocks->input.deltaTime);
+        
+        #ifdef ROCKS_USE_SDL2
+        rocks_sdl2_render(rocks, commands);
+        #endif
     }
 }
 
-void rocks_set_theme(Rocks* rocks, RocksTheme theme) {
-    rocks->config.theme = theme;
-}
-
-RocksTheme rocks_get_theme(Rocks* rocks) {
-    return rocks->config.theme;
-}
 
 uint16_t rocks_load_font(const char* path, int size, uint16_t expected_id) {
     if (!g_rocks) return UINT16_MAX;
@@ -158,5 +146,69 @@ void rocks_unload_font(uint16_t font_id) {
     
     #ifdef ROCKS_USE_SDL2
     rocks_sdl2_unload_font(g_rocks, font_id);
+    #endif
+}
+
+
+
+static Clay_Color make_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    return (Clay_Color){r, g, b, a};
+}
+
+RocksTheme rocks_theme_default(void) {
+    return (RocksTheme){
+        .background = make_color(30, 30, 30, 255),
+        .background_hover = make_color(40, 40, 40, 255),
+        .background_focused = make_color(45, 45, 45, 255),
+        .primary = make_color(66, 135, 245, 255),
+        .primary_hover = make_color(87, 150, 255, 255),
+        .primary_focused = make_color(100, 160, 255, 255),
+        .secondary = make_color(45, 45, 45, 255),
+        .secondary_hover = make_color(55, 55, 55, 255),
+        .secondary_focused = make_color(65, 65, 65, 255),
+        .text = make_color(255, 255, 255, 255),
+        .text_secondary = make_color(180, 180, 180, 255),
+        .scrollbar_track = make_color(40, 40, 40, 200),
+        .scrollbar_thumb = make_color(80, 80, 80, 255),
+        .scrollbar_thumb_hover = make_color(100, 100, 100, 255),
+        .extension = NULL
+    };
+}
+
+void rocks_set_theme(Rocks* rocks, RocksTheme theme) {
+    rocks->config.theme = theme;
+}
+
+RocksTheme rocks_get_theme(Rocks* rocks) {
+    return rocks->config.theme;
+}
+
+
+void* rocks_load_image(Rocks* rocks, const char* path) {
+    if (!rocks) return NULL;
+    
+    #ifdef ROCKS_USE_SDL2
+    return rocks_sdl2_load_image(rocks, path);
+    #else 
+    // For HTML renderer we'd return the path itself
+    return (void*)path;
+    #endif
+}
+
+void rocks_unload_image(Rocks* rocks, void* image_data) {
+    if (!rocks || !image_data) return;
+    
+    #ifdef ROCKS_USE_SDL2
+    rocks_sdl2_unload_image(rocks, image_data);
+    #endif
+}
+
+Clay_Dimensions rocks_get_image_dimensions(Rocks* rocks, void* image_data) {
+    if (!rocks || !image_data) return (Clay_Dimensions){0, 0};
+    
+    #ifdef ROCKS_USE_SDL2
+    return rocks_sdl2_get_image_dimensions(rocks, image_data);
+    #else
+    return (Clay_Dimensions){0, 0};
     #endif
 }
