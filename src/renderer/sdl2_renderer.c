@@ -1,10 +1,11 @@
 #include "renderer/sdl2_renderer.h"
 #include "renderer/sdl2_renderer_utils.h"
 #include "clay.h"
-#include <string.h>
+#include <SDL_image.h>
 #include <SDL_ttf.h>
 #include <SDL2_gfxPrimitives.h>
-#include <SDL_image.h>
+#include <math.h>
+#include <string.h>
 
 // Constants
 static const float SCROLLBAR_FADE_DURATION = 0.6f;
@@ -60,53 +61,13 @@ typedef struct {
     Clay_Vector2 initial_pointer_position;
 } RocksSDL2Renderer;
 
+// Function implementations...
 
 void* rocks_sdl2_load_image(Rocks* rocks, const char* path) {
     RocksSDL2Renderer* r = rocks->renderer_data;
     if (!r || !r->renderer) return NULL;
 
-    #if defined(CLAY_MOBILE)
-    AAssetManager* mgr = get_asset_manager();
-    if (!mgr) {
-        printf("Error: Cannot load image - no asset manager\n");
-        return NULL;
-    }
-
-    const char* asset_path = get_image_path(path);
-    AAsset* asset = AAssetManager_open(mgr, asset_path, AASSET_MODE_BUFFER);
-    if (!asset) {
-        printf("Error: Cannot open image asset: %s\n", asset_path);
-        return NULL;
-    }
-
-    off_t length = AAsset_getLength(asset);
-    void* buffer = malloc(length);
-    if (!buffer) {
-        AAsset_close(asset);
-        return NULL;
-    }
-
-    int read = AAsset_read(asset, buffer, length);
-    AAsset_close(asset);
-
-    if (read != length) {
-        free(buffer);
-        return NULL;
-    }
-
-    SDL_RWops* rw = SDL_RWFromMem(buffer, length);
-    if (!rw) {
-        free(buffer);
-        return NULL;
-    }
-
-    SDL_Surface* surface = IMG_Load_RW(rw, 1);
-    free(buffer);
-
-    #else
     SDL_Surface* surface = IMG_Load(path);
-    #endif
-
     if (!surface) {
         printf("Failed to load image: %s\n", IMG_GetError());
         return NULL;
@@ -140,8 +101,6 @@ Clay_Dimensions rocks_sdl2_get_image_dimensions(Rocks* rocks, void* image_data) 
         .height = (float)h
     };
 }
-
-
 static Clay_ScrollContainerData* find_active_scroll_container(RocksSDL2Renderer* r, Clay_Vector2 pointerPosition) {
     Clay_SetPointerState(pointerPosition, false);
 
@@ -152,6 +111,9 @@ static Clay_ScrollContainerData* find_active_scroll_container(RocksSDL2Renderer*
         if (Clay_PointerOver((Clay_ElementId){.id = r->scroll_containers[i].elementId})) {
             scrollId.id = r->scroll_containers[i].elementId;
             found = true;
+
+            // Debug log: Print the scroll container ID under the pointer
+            printf("Scroll container under pointer: ID=%u\n", scrollId.id);
             break;
         }
     }
@@ -176,6 +138,7 @@ static void handle_pointer_dragging(RocksSDL2Renderer* r, float x, float y) {
     if (!scrollData) return;
 
     if (r->is_scroll_thumb_dragging) {
+
         float viewportHeight = scrollData->scrollContainerDimensions.height;
         float contentHeight = scrollData->contentDimensions.height;
         float mouseDelta = (y / r->scale_factor) - (r->scroll_drag_start_y / r->scale_factor);
@@ -200,6 +163,7 @@ static void handle_pointer_dragging(RocksSDL2Renderer* r, float x, float y) {
         scrollData->scrollPosition->x = newScrollX;
     }
     else if (r->is_scroll_dragging) {
+
         float deltaY = (r->scroll_drag_start_y - y) / r->scale_factor;
         float deltaX = (r->scroll_drag_start_x - x) / r->scale_factor;
         
@@ -362,6 +326,7 @@ static Clay_Dimensions rocks_sdl2_measure_text(Clay_StringSlice text, Clay_TextE
         .height = (float)height
     };
 }
+
 bool rocks_sdl2_init(Rocks* rocks, void* config) {
     printf("Initializing SDL2 renderer...\n");
 
@@ -476,6 +441,7 @@ void rocks_sdl2_cleanup(Rocks* rocks) {
     TTF_Quit();
     SDL_Quit();
 }
+
 uint16_t rocks_sdl2_load_font(Rocks* rocks, const char* path, int size, uint16_t expected_id) {
     RocksSDL2Renderer* r = rocks->renderer_data;
     if (!r) return UINT16_MAX;
@@ -552,7 +518,6 @@ void rocks_sdl2_toggle_fullscreen(Rocks* rocks) {
         rocks_sdl2_set_window_size(rocks, w, h);
     }
 }
-
 
 void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
     RocksSDL2Renderer* r = rocks->renderer_data;
@@ -862,7 +827,7 @@ void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
             printf("Command %d: NULL command\n", i);
             continue;
         }
-        
+        Clay_BoundingBox boundingBox = cmd->boundingBox;
         SDL_FRect scaledBox = ScaleBoundingBox(r->renderer, r->scale_factor, cmd->boundingBox);
 
         switch (cmd->commandType) {
@@ -967,7 +932,7 @@ void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                             false, false, false, true, r->scale_factor);
                 break;
             }
-
+            
             case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
                 if (cmd->config.scrollElementConfig) {
                     // Track scroll container
@@ -975,24 +940,20 @@ void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                         r->scroll_containers[r->scroll_container_count].elementId = cmd->id;
                         r->scroll_containers[r->scroll_container_count].openThisFrame = true;
                         r->scroll_container_count++;
+
+                        // Debug log: Print scroll container ID and dimensions
+                        printf("Scroll container detected: ID=%u, Dimensions=(%.2f, %.2f)\n",
+                            cmd->id, cmd->boundingBox.width, cmd->boundingBox.height);
                     }
 
                     Clay_ScrollElementConfig* config = cmd->config.scrollElementConfig;
                     Clay_ElementId elementId = { .id = cmd->id };
                     
                     if (config->vertical) {
-                        RenderScrollbarRect(
-                            r->renderer,
-                            scaledBox,
-                            (Clay_Color){0, 0, 0, (Uint8)(200 * r->scrollbar_opacity)}
-                        );
+                        RenderScrollbar(r->renderer, boundingBox, true, mouseX, mouseY, config, elementId, r->scale_factor);
                     }
                     if (config->horizontal) {
-                        RenderScrollbarRect(
-                            r->renderer,
-                            scaledBox,
-                            (Clay_Color){0, 0, 0, (Uint8)(200 * r->scrollbar_opacity)}
-                        );
+                        RenderScrollbar(r->renderer, boundingBox, false, mouseX, mouseY, config, elementId, r->scale_factor);
                     }
                 }
 

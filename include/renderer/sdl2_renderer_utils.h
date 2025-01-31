@@ -50,6 +50,18 @@ void RenderScrollbarRect(
     Clay_Color color
 );
 
+
+void RenderScrollbar(
+    SDL_Renderer* renderer,
+    Clay_BoundingBox boundingBox,
+    bool isVertical,
+    int mouseX,
+    int mouseY,
+    Clay_ScrollElementConfig *config,
+    Clay_ElementId elementId,
+    float scale_factor
+);
+
 #endif // ROCKS_USE_SDL2
 
 #endif // ROCKS_SDL2_RENDERER_UTILS_H

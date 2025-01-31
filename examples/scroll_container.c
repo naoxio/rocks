@@ -1,0 +1,155 @@
+#define ROCKS_USE_SDL2  
+#define ROCKS_CLAY_IMPLEMENTATION
+#include "rocks.h"
+#include <stdio.h>
+
+enum {
+    FONT_TITLE = 0,
+    FONT_BODY = 1,
+    FONT_COUNT
+};
+
+static uint16_t g_font_ids[FONT_COUNT];
+
+static RocksTheme create_custom_theme(void) {
+    RocksTheme theme = {
+        .background = (Clay_Color){18, 18, 18, 255},          // Darker background
+        .background_hover = (Clay_Color){30, 30, 30, 255},
+        .background_focused = (Clay_Color){35, 35, 35, 255},
+        .primary = (Clay_Color){79, 70, 229, 255},           // Indigo primary
+        .primary_hover = (Clay_Color){99, 90, 255, 255},
+        .primary_focused = (Clay_Color){110, 100, 255, 255},
+        .secondary = (Clay_Color){30, 30, 30, 255},          // List item background
+        .secondary_hover = (Clay_Color){40, 40, 40, 255},
+        .secondary_focused = (Clay_Color){45, 45, 45, 255},
+        .text = (Clay_Color){255, 255, 255, 255},           // White text
+        .text_secondary = (Clay_Color){156, 163, 175, 255}, // Gray text
+        .scrollbar_track = (Clay_Color){30, 30, 30, 180},   // Semi-transparent track
+        .scrollbar_thumb = (Clay_Color){79, 70, 229, 200},  // Semi-transparent indigo thumb
+        .scrollbar_thumb_hover = (Clay_Color){99, 90, 255, 255}, // Solid indigo on hover
+        .extension = NULL
+    };
+    return theme;
+}
+
+static bool load_resources(Rocks* rocks) {
+    g_font_ids[FONT_TITLE] = rocks_load_font("assets/Roboto-Bold.ttf", 32, FONT_TITLE);
+    if (g_font_ids[FONT_TITLE] == UINT16_MAX) {
+        return false;
+    }
+    
+    g_font_ids[FONT_BODY] = rocks_load_font("assets/Roboto-Regular.ttf", 16, FONT_BODY);
+    if (g_font_ids[FONT_BODY] == UINT16_MAX) {
+        rocks_unload_font(g_font_ids[FONT_TITLE]);
+        return false;
+    }
+
+    return true;
+}
+
+static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
+    RocksTheme theme = rocks_get_theme(rocks);
+    
+    CLAY(CLAY_ID("MainContainer"), 
+        CLAY_LAYOUT({
+            .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
+            .childAlignment = { CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER },
+            .layoutDirection = CLAY_TOP_TO_BOTTOM,
+            .childGap = 20,
+            .padding = { 0, 0, 40, 40 }
+        }),
+        CLAY_RECTANGLE({ .color = theme.background })
+    ) {
+        CLAY_TEXT(CLAY_STRING("Scrollable List"), CLAY_TEXT_CONFIG({
+            .textColor = theme.text,
+            .fontSize = 32,
+            .fontId = g_font_ids[FONT_TITLE]
+        }));
+
+        // Container for the scrollable list with a dark background
+        CLAY(CLAY_ID("ListBackground"),
+            CLAY_LAYOUT({
+                .sizing = { CLAY_SIZING_FIXED(420), CLAY_SIZING_FIXED(400) },
+                .padding = { 10, 10, 10, 10 }
+            }),
+            CLAY_RECTANGLE({ 
+                .color = theme.secondary,
+                .cornerRadius = CLAY_CORNER_RADIUS(8)
+            })
+        ) {
+            CLAY(CLAY_ID("ScrollContainer"),
+                CLAY_LAYOUT({
+                    .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
+                    .childAlignment = { CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_TOP },
+                    .childGap = 8,
+                    .layoutDirection = CLAY_TOP_TO_BOTTOM 
+                }),
+                CLAY_SCROLL({ .vertical = true })
+            ) {
+                static char item_texts[50][32];
+                
+                for (int i = 0; i < 50; i++) {
+                    snprintf(item_texts[i], sizeof(item_texts[i]), "Item %d", i + 1);
+                    Clay_String item_string = {
+                        .chars = item_texts[i],
+                        .length = strlen(item_texts[i])
+                    };
+
+                    CLAY(CLAY_IDI("ListItem", i),
+                        CLAY_LAYOUT({
+                            .sizing = { CLAY_SIZING_FIXED(380), CLAY_SIZING_FIXED(40) },
+                            .childAlignment = { CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER },
+                            .padding = { 16, 0, 0, 0 }
+                        }),
+                        CLAY_RECTANGLE({ 
+                            .color = theme.background,
+                            .cornerRadius = CLAY_CORNER_RADIUS(6)
+                        })
+                    ) {
+                        CLAY_TEXT(item_string, CLAY_TEXT_CONFIG({
+                            .textColor = theme.text,
+                            .fontSize = 16,
+                            .fontId = g_font_ids[FONT_BODY]
+                        }));
+                    }
+                }
+            }
+        }
+    }
+
+    return Clay_EndLayout();
+}
+
+int main(void) {
+    RocksSDL2Config sdl_config = {
+        .window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE,
+        .renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC,
+        .scale_factor = 1.0f,
+        .vsync = true,
+        .high_dpi = true
+    };
+
+    RocksConfig config = {
+        .window_width = 800,
+        .window_height = 800,
+        .window_title = "Scrollable List Example",
+        .renderer_config = &sdl_config,
+        .theme = create_custom_theme()  // Use our custom theme
+    };
+
+    Rocks* rocks = rocks_init(config);
+    if (!rocks) return 1;
+
+    if (!load_resources(rocks)) {
+        rocks_cleanup(rocks);
+        return 1;
+    }
+
+    rocks_run(rocks, update);
+
+    rocks_unload_font(g_font_ids[FONT_TITLE]);
+    rocks_unload_font(g_font_ids[FONT_BODY]);
+    rocks_cleanup(rocks);
+    
+    return 0;
+}

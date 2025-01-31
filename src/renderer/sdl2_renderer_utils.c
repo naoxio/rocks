@@ -4,6 +4,7 @@
 #include <SDL_ttf.h>
 #include <SDL2_gfxPrimitives.h>
 #include <math.h>
+#include "rocks.h"
 // Memory utils for SDL renderer
 void* SDL_AllocateAligned(size_t alignment, size_t size) {
     if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
@@ -220,11 +221,81 @@ void RenderBorder(
 }
 
 void RenderScrollbarRect(
-    SDL_Renderer* renderer,
+    SDL_Renderer* renderer, 
     SDL_FRect rect,
     Clay_Color color
 ) {
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     SDL_RenderFillRectF(renderer, &rect);
+}
+void RenderScrollbar(
+    SDL_Renderer* renderer,
+    Clay_BoundingBox boundingBox,
+    bool isVertical,
+    int mouseX,
+    int mouseY,
+    Clay_ScrollElementConfig *config,
+    Clay_ElementId elementId,
+    float scale_factor
+) {
+    Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
+    if (!scrollData.found) return;
+
+    // Get theme colors from rocks global instance
+    RocksTheme theme = rocks_get_theme(g_rocks);
+
+    float viewportSize = isVertical ? boundingBox.height : boundingBox.width;
+    float contentSize = isVertical ? scrollData.contentDimensions.height : scrollData.contentDimensions.width;
+
+    if (contentSize <= viewportSize) {
+        return;
+    }
+
+    SDL_FRect scaledBox = ScaleBoundingBox(renderer, scale_factor, boundingBox);
+    
+    const float scrollbar_size = 10 * scale_factor;
+
+    // Calculate thumb size and position
+    float scrollRatio = viewportSize / contentSize;
+    float thumbSize = SDL_max(scrollRatio * viewportSize, scrollbar_size * 2) * scale_factor;
+    
+    float maxScrollContent = contentSize - viewportSize;
+    float scrollProgress = isVertical ? 
+        (-scrollData.scrollPosition->y / maxScrollContent) :
+        (-scrollData.scrollPosition->x / maxScrollContent);
+
+    float maxTrackSize = (isVertical ? scaledBox.h : scaledBox.w) - thumbSize;
+    float thumbPosition = scrollProgress * maxTrackSize;
+    thumbPosition = SDL_clamp(thumbPosition, 0, maxTrackSize);
+
+    // Create track rect
+    SDL_FRect track = {
+        .x = isVertical ? (scaledBox.x + scaledBox.w - scrollbar_size) : scaledBox.x,
+        .y = isVertical ? scaledBox.y : (scaledBox.y + scaledBox.h - scrollbar_size),
+        .w = isVertical ? scrollbar_size : scaledBox.w,
+        .h = isVertical ? scaledBox.h : scrollbar_size
+    };
+
+    // Create thumb rect
+    SDL_FRect thumb = {
+        .x = isVertical ? track.x : (track.x + thumbPosition),
+        .y = isVertical ? (track.y + thumbPosition) : track.y,
+        .w = isVertical ? scrollbar_size : thumbSize,
+        .h = isVertical ? thumbSize : scrollbar_size
+    };
+
+    // Hit testing
+    float scaledMouseX = mouseX * scale_factor;
+    float scaledMouseY = mouseY * scale_factor;
+    bool isHovered = 
+        scaledMouseX >= thumb.x && scaledMouseX <= thumb.x + thumb.w &&
+        scaledMouseY >= thumb.y && scaledMouseY <= thumb.y + thumb.h;
+
+    // Render track using theme colors
+    RenderScrollbarRect(renderer, track, theme.scrollbar_track);
+
+    // Render thumb using theme colors
+    Clay_Color thumbColor = isHovered ? theme.scrollbar_thumb_hover : theme.scrollbar_thumb;
+    RenderScrollbarRect(renderer, thumb, thumbColor);
 }
