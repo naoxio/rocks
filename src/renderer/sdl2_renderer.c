@@ -190,6 +190,7 @@ static void handle_pointer_dragging(RocksSDL2Renderer* r, float x, float y) {
     }
 }
 
+
 static void cleanup_active_scroll_container(RocksSDL2Renderer* r) {
     if (r->active_scroll_container) {
         free(r->active_scroll_container);
@@ -206,6 +207,63 @@ static void reset_scroll_container(RocksSDL2Renderer* r) {
     r->is_horizontal_scroll_thumb_dragging = false;
     r->is_scroll_dragging = false;
     r->active_scroll_container_id = 0;
+}
+
+typedef struct {
+    float velocity_x;
+    float velocity_y;
+    float last_scroll_time;
+} InertialScrollState;
+
+static InertialScrollState inertial_scroll_state = {0};
+
+static void update_inertial_scroll(RocksSDL2Renderer* r, Clay_ScrollContainerData* scrollData, float delta_time) {
+    if (r->is_scroll_dragging || r->is_scroll_thumb_dragging || r->is_horizontal_scroll_thumb_dragging) {
+        inertial_scroll_state.velocity_x = 0;
+        inertial_scroll_state.velocity_y = 0;
+        return;
+    }
+
+    float decay_factor = 0.9f; // Adjust this value to control the decay speed
+    inertial_scroll_state.velocity_x *= decay_factor;
+    inertial_scroll_state.velocity_y *= decay_factor;
+
+    float newScrollX = scrollData->scrollPosition->x + inertial_scroll_state.velocity_x * delta_time;
+    float newScrollY = scrollData->scrollPosition->y + inertial_scroll_state.velocity_y * delta_time;
+
+    float scrollableWidth = scrollData->contentDimensions.width - scrollData->scrollContainerDimensions.width;
+    float scrollableHeight = scrollData->contentDimensions.height - scrollData->scrollContainerDimensions.height;
+
+    newScrollX = CLAY__MIN(0, CLAY__MAX(newScrollX, -scrollableWidth));
+    newScrollY = CLAY__MIN(0, CLAY__MAX(newScrollY, -scrollableHeight));
+
+    scrollData->scrollPosition->x = newScrollX;
+    scrollData->scrollPosition->y = newScrollY;
+}
+static float get_scroll_sensitivity(Clay_ScrollContainerData* scrollData) {
+    float base_sensitivity = 5.0f;
+    float content_size_factor = scrollData->contentDimensions.height / scrollData->scrollContainerDimensions.height;
+    return base_sensitivity * content_size_factor;
+}
+
+static void clamp_scroll_position(Clay_ScrollContainerData* scrollData) {
+    float scrollableWidth = scrollData->contentDimensions.width - scrollData->scrollContainerDimensions.width;
+    float scrollableHeight = scrollData->contentDimensions.height - scrollData->scrollContainerDimensions.height;
+
+    scrollData->scrollPosition->x = CLAY__MIN(0, CLAY__MAX(scrollData->scrollPosition->x, -scrollableWidth));
+    scrollData->scrollPosition->y = CLAY__MIN(0, CLAY__MAX(scrollData->scrollPosition->y, -scrollableHeight));
+}
+
+static Uint32 last_scroll_time = 0;
+static const Uint32 SCROLL_DEBOUNCE_TIME = 50; // 50ms debounce time
+
+static bool should_process_scroll_event() {
+    Uint32 current_time = SDL_GetTicks();
+    if (current_time - last_scroll_time < SCROLL_DEBOUNCE_TIME) {
+        return false;
+    }
+    last_scroll_time = current_time;
+    return true;
 }
 
 static void handle_mouse_scrollbar_interaction(
@@ -292,6 +350,7 @@ static void handle_mouse_scrollbar_interaction(
     r->scroll_drag_start_x = event->x;
     r->initial_scroll_position = *scrollData->scrollPosition;
 }
+
 
 static Clay_Dimensions rocks_sdl2_measure_text(Clay_StringSlice text, Clay_TextElementConfig* config, uintptr_t userData) {
     RocksSDL2Renderer* r = (RocksSDL2Renderer*)userData;
@@ -542,10 +601,10 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
                 });
             }
             break;
-
         case SDL_MOUSEWHEEL: {
-            float scrollMultiplier = 15.0f / r->scale_factor;
-            Clay_Vector2 scrollDelta = {0, 0};
+            if (!should_process_scroll_event()) {
+                break;
+            }
 
             Clay_Vector2 currentPos = {
                 (float)sdl_event->wheel.mouseX / r->scale_factor,
@@ -554,23 +613,36 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
 
             r->active_scroll_container = find_active_scroll_container(r, currentPos);
 
-            if (r->active_scroll_container) {
-                if (sdl_event->wheel.x != 0 && r->active_scroll_container->config.horizontal) {
-                    scrollDelta.x = -sdl_event->wheel.x * scrollMultiplier;
-                }
-                else if (sdl_event->wheel.y != 0) {
-                    bool preferHorizontal = (r->active_scroll_container->contentDimensions.width > r->active_scroll_container->contentDimensions.height) ||
-                                        (r->active_scroll_container->config.horizontal && !r->active_scroll_container->config.vertical);
-
-                    if (preferHorizontal && r->active_scroll_container->config.horizontal) {
-                        scrollDelta.x = sdl_event->wheel.y * scrollMultiplier;
-                    } else if (r->active_scroll_container->config.vertical) {
-                        scrollDelta.y = sdl_event->wheel.y * scrollMultiplier;
-                    }
-                }
-
-                Clay_UpdateScrollContainers(true, scrollDelta, delta_time);
+            // Check if active_scroll_container is valid
+            if (!r->active_scroll_container) {
+                printf("No active scroll container found under pointer.\n");
+                break;
             }
+
+            float scrollMultiplier = get_scroll_sensitivity(r->active_scroll_container);
+            Clay_Vector2 scrollDelta = {0, 0};
+
+            if (sdl_event->wheel.x != 0 && r->active_scroll_container->config.horizontal) {
+                scrollDelta.x = -sdl_event->wheel.x * scrollMultiplier;
+            }
+            else if (sdl_event->wheel.y != 0) {
+                bool preferHorizontal = (r->active_scroll_container->contentDimensions.width > r->active_scroll_container->contentDimensions.height) ||
+                                    (r->active_scroll_container->config.horizontal && !r->active_scroll_container->config.vertical);
+
+                if (preferHorizontal && r->active_scroll_container->config.horizontal) {
+                    scrollDelta.x = sdl_event->wheel.y * scrollMultiplier;
+                } else if (r->active_scroll_container->config.vertical) {
+                    scrollDelta.y = sdl_event->wheel.y * scrollMultiplier;
+                }
+            }
+
+            Clay_UpdateScrollContainers(true, scrollDelta, delta_time);
+            clamp_scroll_position(r->active_scroll_container);
+
+            // Update inertial scroll velocity
+            inertial_scroll_state.velocity_x = scrollDelta.x / delta_time;
+            inertial_scroll_state.velocity_y = scrollDelta.y / delta_time;
+            inertial_scroll_state.last_scroll_time = SDL_GetTicks();
             break;
         }
 
@@ -635,7 +707,7 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
             Clay_SetPointerState(upPosition, false);
             
             reset_scroll_container(r);
-            r->active_scroll_container = NULL;
+            cleanup_active_scroll_container(r);
             break;
         }
 
