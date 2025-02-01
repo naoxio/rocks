@@ -51,9 +51,20 @@ typedef struct {
     size_t arena_size;
 } RocksConfig;
 
+
 #ifdef ROCKS_USE_SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+
+
+typedef struct {
+    uint32_t window_flags;
+    uint32_t renderer_flags;
+    float scale_factor;
+    bool vsync;
+    bool high_dpi;
+} RocksSDL2Config;
+
 
 struct Rocks {
     RocksConfig config;
@@ -66,7 +77,17 @@ struct Rocks {
     SDL_Window* window;
     SDL_Renderer* renderer;
 };
-#else
+
+#elif defined(ROCKS_USE_RAYLIB)
+#include <raylib.h>
+
+typedef struct {
+    int screen_width;
+    int screen_height;
+    bool fullscreen;
+    bool vsync;
+} RocksRaylibConfig;
+
 struct Rocks {
     RocksConfig config;
     RocksInputState input;
@@ -75,7 +96,10 @@ struct Rocks {
     void* renderer_data;
     float global_scaling_factor;
     bool is_running;
+    RenderTexture2D target;  // Raylib uses render textures for scaling
 };
-#endif
 
-#endif
+#endif // ROCKS_USE_RAYLIB
+
+#endif // ROCKS_TYPES_H
+

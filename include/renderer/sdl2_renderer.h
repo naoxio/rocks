@@ -5,14 +5,6 @@
 #include "sdl2_renderer_utils.h"
 
 #ifdef ROCKS_USE_SDL2
-typedef struct {
-    uint32_t window_flags;
-    uint32_t renderer_flags;
-    float scale_factor;
-    bool vsync;
-    bool high_dpi;
-} RocksSDL2Config;
-
 bool rocks_sdl2_init(Rocks* rocks, void* config);
 void rocks_sdl2_cleanup(Rocks* rocks);
 void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands);

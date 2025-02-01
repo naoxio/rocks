@@ -1,8 +1,15 @@
-#define ROCKS_USE_SDL2  
 #define ROCKS_CLAY_IMPLEMENTATION
 #include "rocks.h"
+#include "rocks_types.h"
 #include <stdio.h>
 
+#ifdef ROCKS_USE_SDL2
+#include <SDL2/SDL.h>
+#endif
+
+#ifdef ROCKS_USE_RAYLIB
+#include <raylib.h>
+#endif
 
 enum {
     FONT_TITLE = 0,
@@ -14,9 +21,7 @@ static uint16_t g_font_ids[FONT_COUNT];
 
 static bool load_fonts(void) {
     g_font_ids[FONT_TITLE] = rocks_load_font("assets/Roboto-Bold.ttf", 32, FONT_TITLE);
-    if (g_font_ids[FONT_TITLE] == UINT16_MAX) {
-        return false;
-    }
+    if (g_font_ids[FONT_TITLE] == UINT16_MAX) return false;
     
     g_font_ids[FONT_BODY] = rocks_load_font("assets/Roboto-Regular.ttf", 16, FONT_BODY);
     if (g_font_ids[FONT_BODY] == UINT16_MAX) {
@@ -26,6 +31,7 @@ static bool load_fonts(void) {
     
     return true;
 }
+
 static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
     RocksTheme theme = rocks_get_theme(rocks);
 
@@ -62,23 +68,14 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
         }
     }
 
-    Clay_RenderCommandArray commands = Clay_EndLayout();
-    return commands;
+    return Clay_EndLayout();
 }
-int main(void) {
-    RocksSDL2Config sdl_config = {
-        .window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE,
-        .renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC,
-        .scale_factor = 1.0f,
-        .vsync = true,
-        .high_dpi = true
-    };
 
+int main(void) {
     RocksConfig config = {
         .window_width = 800,
         .window_height = 600,
         .window_title = "Hello Rocks!",
-        .renderer_config = &sdl_config,  // Pass SDL config
         .theme = {
             .primary = (Clay_Color){66, 135, 245, 255},
             .primary_hover = (Clay_Color){87, 150, 255, 255},
@@ -91,6 +88,30 @@ int main(void) {
         }
     };
 
+#ifdef ROCKS_USE_SDL2
+    RocksSDL2Config sdl_config = {
+        .window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE,
+        .renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC,
+        .scale_factor = 1.0f,
+        .vsync = true,
+        .high_dpi = true
+    };
+    config.renderer_config = &sdl_config;
+#endif
+
+#ifdef ROCKS_USE_RAYLIB
+    RocksRaylibConfig raylib_config = {
+        .screen_width = 800,
+        .screen_height = 600
+    };
+    config.renderer_config = &raylib_config;
+#endif
+
+#if !defined(ROCKS_USE_SDL2) && !defined(ROCKS_USE_RAYLIB)
+    printf("Error: No rendering backend defined. Define either ROCKS_USE_SDL2 or ROCKS_USE_RAYLIB.\n");
+    return 1;
+#endif
+
     Rocks* rocks = rocks_init(config);
     if (!rocks) return 1;
 
@@ -100,6 +121,9 @@ int main(void) {
     }
 
     rocks_run(rocks, update);
+    
+    rocks_unload_font(g_font_ids[FONT_TITLE]);
+    rocks_unload_font(g_font_ids[FONT_BODY]);
     rocks_cleanup(rocks);
     
     return 0;

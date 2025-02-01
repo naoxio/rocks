@@ -1,7 +1,15 @@
-#define ROCKS_USE_SDL2  
 #define ROCKS_CLAY_IMPLEMENTATION
 #include "rocks.h"
+#include "rocks_types.h"
 #include <stdio.h>
+
+#ifdef ROCKS_USE_SDL2
+#include <SDL2/SDL.h>
+#endif
+
+#ifdef ROCKS_USE_RAYLIB
+#include <raylib.h>
+#endif
 
 enum {
     FONT_TITLE = 0,
@@ -77,6 +85,15 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
 }
 
 int main(void) {
+    RocksConfig config = {
+        .window_width = 800,
+        .window_height = 600,
+        .window_title = "Alice in Wonderland",
+        .theme = rocks_theme_default(),
+        .scale_factor = 1.0f
+    };
+
+#ifdef ROCKS_USE_SDL2
     RocksSDL2Config sdl_config = {
         .window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE,
         .renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC,
@@ -84,14 +101,22 @@ int main(void) {
         .vsync = true,
         .high_dpi = true
     };
+    config.renderer_config = &sdl_config;
+#endif
 
-    RocksConfig config = {
-        .window_width = 800,
-        .window_height = 600,
-        .window_title = "Alice in Wonderland",
-        .renderer_config = &sdl_config,
-        .theme = rocks_theme_default()
+#ifdef ROCKS_USE_RAYLIB
+    RocksRaylibConfig raylib_config = {
+        .screen_width = 800,
+        .screen_height = 600
     };
+    config.renderer_config = &raylib_config;
+#endif
+
+#if !defined(ROCKS_USE_SDL2) && !defined(ROCKS_USE_RAYLIB)
+    printf("Error: No rendering backend defined. Define either ROCKS_USE_SDL2 or ROCKS_USE_RAYLIB.\n");
+    return 1;
+#endif
+
 
     Rocks* rocks = rocks_init(config);
     if (!rocks) return 1;
@@ -110,3 +135,4 @@ int main(void) {
     
     return 0;
 }
+
