@@ -36,10 +36,16 @@ typedef struct {
     Font font;
 } RockRaylibFont;
 
+
 struct ScrollState {
     float velocity_x;
     float velocity_y;
-    float last_scroll_time;
+    bool is_dragging;
+    Clay_Vector2 drag_start;
+    Clay_Vector2 scroll_start;
+    bool is_dragging_handle;
+    int active_scrollbar_id;
+    bool vertical_scrollbar;
 };
 
 // Main renderer structure

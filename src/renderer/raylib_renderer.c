@@ -61,7 +61,6 @@ static void update_scroll_state(RocksRaylibRenderer* r) {
         scrollData.scrollPosition->y = Clamp(scrollData.scrollPosition->y, maxScrollY, 0);
     }
 }
-
 static void render_scrollbar(
     RocksRaylibRenderer* r,
     Clay_BoundingBox boundingBox,
@@ -74,7 +73,7 @@ static void render_scrollbar(
 
     RocksTheme theme = rocks_get_theme(r->rocks);
     
-    float viewportSize = isVertical ? boundingBox.height : boundingBox.width;
+    float viewportSize = isVertical ? scrollData.scrollContainerDimensions.height : scrollData.scrollContainerDimensions.width;
     float contentSize = isVertical ? scrollData.contentDimensions.height : scrollData.contentDimensions.width;
     
     if (contentSize <= viewportSize) return;
@@ -329,6 +328,121 @@ void rocks_raylib_process_events(Rocks* rocks) {
     rocks->input.mousePositionY = mousePos.y;
     rocks->input.isMouseDown = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
 
+    // Handle drag scrolling
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        r->last_mouse_move_time = GetTime();
+        g_scroll_state.is_dragging = true;
+        g_scroll_state.drag_start = (Clay_Vector2){mousePos.x, mousePos.y};
+        
+        // Check if we're clicking on a scrollbar handle
+        for (int i = 0; i < r->scroll_container_count; i++) {
+            Clay_ElementId elementId = {.id = r->scroll_containers[i].elementId};
+            Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
+            Clay_ElementData elementData = Clay_GetElementData(elementId);
+            
+            if (!scrollData.found || !elementData.found) continue;
+
+            Rectangle verticalThumb = {0};
+            Rectangle horizontalThumb = {0};
+            
+            if (scrollData.config.vertical) {
+                float viewportSize = scrollData.scrollContainerDimensions.height;
+                float contentSize = scrollData.contentDimensions.height;
+                float thumbSize = fmaxf((viewportSize / contentSize) * viewportSize, SCROLLBAR_SIZE * r->scale_factor * 2);
+                float maxScroll = contentSize - viewportSize;
+                float scrollProgress = -scrollData.scrollPosition->y / maxScroll;
+                float maxTrackSize = viewportSize - thumbSize;
+                float thumbPosition = scrollProgress * maxTrackSize;
+                
+                verticalThumb = (Rectangle){
+                    (elementData.boundingBox.x + elementData.boundingBox.width - SCROLLBAR_SIZE * r->scale_factor),
+                    elementData.boundingBox.y + thumbPosition,
+                    SCROLLBAR_SIZE * r->scale_factor,
+                    thumbSize
+                };
+            }
+            
+            if (scrollData.config.horizontal) {
+                float viewportSize = scrollData.scrollContainerDimensions.width;
+                float contentSize = scrollData.contentDimensions.width;
+                float thumbSize = fmaxf((viewportSize / contentSize) * viewportSize, SCROLLBAR_SIZE * r->scale_factor * 2);
+                float maxScroll = contentSize - viewportSize;
+                float scrollProgress = -scrollData.scrollPosition->x / maxScroll;
+                float maxTrackSize = viewportSize - thumbSize;
+                float thumbPosition = scrollProgress * maxTrackSize;
+                
+                horizontalThumb = (Rectangle){
+                    elementData.boundingBox.x + thumbPosition,
+                    (elementData.boundingBox.y + elementData.boundingBox.height - SCROLLBAR_SIZE * r->scale_factor),
+                    thumbSize,
+                    SCROLLBAR_SIZE * r->scale_factor
+                };
+            }
+
+            if (CheckCollisionPointRec(mousePos, verticalThumb)) {
+                g_scroll_state.is_dragging_handle = true;
+                g_scroll_state.vertical_scrollbar = true;
+                g_scroll_state.active_scrollbar_id = r->scroll_containers[i].elementId;
+                g_scroll_state.scroll_start = *scrollData.scrollPosition;
+                break;
+            } else if (CheckCollisionPointRec(mousePos, horizontalThumb)) {
+                g_scroll_state.is_dragging_handle = true;
+                g_scroll_state.vertical_scrollbar = false;
+                g_scroll_state.active_scrollbar_id = r->scroll_containers[i].elementId;
+                g_scroll_state.scroll_start = *scrollData.scrollPosition;
+                break;
+            }
+        }
+    }
+
+    if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+        g_scroll_state.is_dragging = false;
+        g_scroll_state.is_dragging_handle = false;
+    }
+
+    if (g_scroll_state.is_dragging) {
+        Vector2 dragDelta = {
+            mousePos.x - g_scroll_state.drag_start.x,
+            mousePos.y - g_scroll_state.drag_start.y
+        };
+
+        if (g_scroll_state.is_dragging_handle) {
+            Clay_ElementId elementId = {.id = g_scroll_state.active_scrollbar_id};
+            Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
+            
+            if (scrollData.found) {
+                float viewportSize = g_scroll_state.vertical_scrollbar ? 
+                    scrollData.scrollContainerDimensions.height : 
+                    scrollData.scrollContainerDimensions.width;
+                float contentSize = g_scroll_state.vertical_scrollbar ? 
+                    scrollData.contentDimensions.height : 
+                    scrollData.contentDimensions.width;
+                
+                float scrollRatio = contentSize / viewportSize;
+                
+                if (g_scroll_state.vertical_scrollbar) {
+                    float newScrollY = g_scroll_state.scroll_start.y - (dragDelta.y * scrollRatio);
+                    float maxScrollY = -(contentSize - viewportSize);
+                    scrollData.scrollPosition->y = Clamp(newScrollY, maxScrollY, 0);
+                } else {
+                    float newScrollX = g_scroll_state.scroll_start.x - (dragDelta.x * scrollRatio);
+                    float maxScrollX = -(contentSize - viewportSize);
+                    scrollData.scrollPosition->x = Clamp(newScrollX, maxScrollX, 0);
+                }
+            }
+        } else {
+            // Content drag scrolling
+            Clay_Vector2 scrollDelta = {dragDelta.x, dragDelta.y};
+            Clay_UpdateScrollContainers(true, scrollDelta, GetFrameTime());
+            
+            // Update velocity for momentum
+            g_scroll_state.velocity_x = (mousePos.x - g_scroll_state.drag_start.x) / GetFrameTime();
+            g_scroll_state.velocity_y = (mousePos.y - g_scroll_state.drag_start.y) / GetFrameTime();
+            
+            g_scroll_state.drag_start = (Clay_Vector2){mousePos.x, mousePos.y};
+        }
+    }
+
     // Handle mouse wheel for scrolling
     float wheelMove = GetMouseWheelMove();
     if (wheelMove != 0) {
@@ -397,32 +511,7 @@ void rocks_raylib_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                 Clay_RectangleElementConfig* config = cmd->config.rectangleElementConfig;
                 if (!config) continue;
 
-                Color color = {
-                    config->color.r,
-                    config->color.g,
-                    config->color.b,
-                    config->color.a
-                };
-
-                // Handle cursor pointer
-                if (config->cursorPointer && r->pointer_elements_count < MAX_POINTER_ELEMENTS) {
-                    r->pointer_elements[r->pointer_elements_count++] = cmd->id;
-                }
-
-                // Draw rectangle with rounded corners
-                DrawRectangleRounded(
-                    (Rectangle){
-                        cmd->boundingBox.x * r->scale_factor,
-                        cmd->boundingBox.y * r->scale_factor,
-                        cmd->boundingBox.width * r->scale_factor,
-                        cmd->boundingBox.height * r->scale_factor
-                    },
-                    config->cornerRadius.topLeft,
-                    8,
-                    color
-                );
-
-                // Handle shadows if enabled
+                // If shadow enabled, draw it first (so it appears behind the main rectangle)
                 if (config->shadowEnabled) {
                     Color shadowColor = {
                         config->shadowColor.r,
@@ -440,10 +529,43 @@ void rocks_raylib_render(Rocks* rocks, Clay_RenderCommandArray commands) {
 
                     DrawRectangleRounded(
                         shadowRect,
-                        config->cornerRadius.topLeft,
-                        8,
+                        config->cornerRadius.topLeft / (cmd->boundingBox.height / 2.0f),
+                        12,
                         shadowColor
                     );
+                }
+
+                // Handle cursor pointer tracking
+                if (config->cursorPointer && r->pointer_elements_count < MAX_POINTER_ELEMENTS) {
+                    r->pointer_elements[r->pointer_elements_count++] = cmd->id;
+                }
+
+                // Draw main rectangle
+                Color color = {
+                    config->color.r,
+                    config->color.g,
+                    config->color.b,
+                    config->color.a
+                };
+
+                Rectangle rect = {
+                    cmd->boundingBox.x * r->scale_factor,
+                    cmd->boundingBox.y * r->scale_factor,
+                    cmd->boundingBox.width * r->scale_factor,
+                    cmd->boundingBox.height * r->scale_factor
+                };
+
+                if (config->cornerRadius.topLeft > 0) {
+                    // Draw rounded rectangle if corner radius is specified
+                    DrawRectangleRounded(
+                        rect,
+                        config->cornerRadius.topLeft / (cmd->boundingBox.height / 2.0f),
+                        12,
+                        color
+                    );
+                } else {
+                    // Draw regular rectangle if no corner radius
+                    DrawRectangleRec(rect, color);
                 }
                 break;
             }
