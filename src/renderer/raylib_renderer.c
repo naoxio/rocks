@@ -298,7 +298,6 @@ Clay_Dimensions rocks_raylib_get_image_dimensions(Rocks* rocks, void* image_data
 float rocks_raylib_get_time(void) {
     return GetTime();
 }
-
 void rocks_raylib_process_events(Rocks* rocks) {
     RocksRaylibRenderer* r = rocks->renderer_data;
     if (!r) return;
@@ -327,6 +326,32 @@ void rocks_raylib_process_events(Rocks* rocks) {
     rocks->input.mousePositionX = mousePos.x;
     rocks->input.mousePositionY = mousePos.y;
     rocks->input.isMouseDown = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
+
+    // Check if mouse moved
+    static Vector2 lastMousePos = {0};
+    if (mousePos.x != lastMousePos.x || mousePos.y != lastMousePos.y) {
+        // Check if mouse is within any scroll container
+        for (int i = 0; i < r->scroll_container_count; i++) {
+            Clay_ElementId elementId = {.id = r->scroll_containers[i].elementId};
+            Clay_ElementData elementData = Clay_GetElementData(elementId);
+            
+            if (elementData.found) {
+                Rectangle bounds = {
+                    elementData.boundingBox.x,
+                    elementData.boundingBox.y,
+                    elementData.boundingBox.width,
+                    elementData.boundingBox.height
+                };
+                
+                if (CheckCollisionPointRec(mousePos, bounds)) {
+                    r->last_mouse_move_time = GetTime();
+                    break;
+                }
+            }
+        }
+        
+        lastMousePos = mousePos;
+    }
 
     // Handle drag scrolling
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
