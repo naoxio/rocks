@@ -639,85 +639,18 @@ void rocks_raylib_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                     cmd->boundingBox.width * r->scale_factor,
                     cmd->boundingBox.height * r->scale_factor
                 };
+                
+                Color color = {
+                    config->top.color.r,
+                    config->top.color.g, 
+                    config->top.color.b,
+                    config->top.color.a
+                };
 
-                // Draw borders
-                if (config->top.width > 0) {
-                    DrawRectangleRounded(
-                        (Rectangle){
-                            rect.x,
-                            rect.y,
-                            rect.width,
-                            config->top.width * r->scale_factor
-                        },
-                        config->cornerRadius.topLeft,
-                        8,
-                        (Color){
-                            config->top.color.r,
-                            config->top.color.g,
-                            config->top.color.b,
-                            config->top.color.a
-                        }
-                    );
-                }
-
-                if (config->bottom.width > 0) {
-                    DrawRectangleRounded(
-                        (Rectangle){
-                            rect.x,
-                            rect.y + rect.height - config->bottom.width * r->scale_factor,
-                            rect.width,
-                            config->bottom.width * r->scale_factor
-                        },
-                        config->cornerRadius.bottomLeft,
-                        8,
-                        (Color){
-                            config->bottom.color.r,
-                            config->bottom.color.g,
-                            config->bottom.color.b,
-                            config->bottom.color.a
-                        }
-                    );
-                }
-
-                if (config->left.width > 0) {
-                    DrawRectangleRounded(
-                        (Rectangle){
-                            rect.x,
-                            rect.y,
-                            config->left.width * r->scale_factor,
-                            rect.height
-                        },
-                        config->cornerRadius.topLeft,
-                        8,
-                        (Color){
-                            config->left.color.r,
-                            config->left.color.g,
-                            config->left.color.b,
-                            config->left.color.a
-                        }
-                    );
-                }
-
-                if (config->right.width > 0) {
-                    DrawRectangleRounded(
-                        (Rectangle){
-                            rect.x + rect.width - config->right.width * r->scale_factor,
-                            rect.y,
-                            config->right.width * r->scale_factor,
-                            rect.height
-                        },
-                        config->cornerRadius.topRight,
-                        8,
-                        (Color){
-                            config->right.color.r,
-                            config->right.color.g,
-                            config->right.color.b,
-                            config->right.color.a
-                        }
-                    );
-                }
+                float roundness = config->cornerRadius.topLeft / (rect.height / 2.0f);
+                DrawRectangleRoundedLines(rect, roundness, 8, color);
                 break;
-            }
+                }
             case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
                 if (cmd->config.scrollElementConfig) {
                     // Track scroll container
