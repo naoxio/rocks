@@ -3,7 +3,11 @@
 
 #include "rocks_clay.h"
 
+// Forward declarations
 typedef struct Rocks Rocks;
+typedef struct RocksRaylibRenderer RocksRaylibRenderer;
+typedef struct RocksScrollContainer RocksScrollContainer;
+typedef struct ScrollState ScrollState;
 
 typedef struct {
     float mouseWheelX;
@@ -18,9 +22,7 @@ typedef struct {
     float deltaTime;
 } RocksInputState;
 
-
 typedef struct {
-    // Base theme colors that the library needs
     Clay_Color background;
     Clay_Color background_hover;
     Clay_Color background_focused;
@@ -35,11 +37,8 @@ typedef struct {
     Clay_Color scrollbar_track;
     Clay_Color scrollbar_thumb;
     Clay_Color scrollbar_thumb_hover;
-    
-    // Extension point for applications
     void* extension;
 } RocksTheme;
-
 
 typedef struct {
     uint32_t window_width;
@@ -51,11 +50,9 @@ typedef struct {
     size_t arena_size;
 } RocksConfig;
 
-
 #ifdef ROCKS_USE_SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
-
 
 typedef struct {
     uint32_t window_flags;
@@ -64,7 +61,6 @@ typedef struct {
     bool vsync;
     bool high_dpi;
 } RocksSDL2Config;
-
 
 struct Rocks {
     RocksConfig config;
@@ -84,8 +80,9 @@ struct Rocks {
 typedef struct {
     int screen_width;
     int screen_height;
-    bool fullscreen;
+    float scale_factor;
     bool vsync;
+    bool high_dpi;
 } RocksRaylibConfig;
 
 struct Rocks {
@@ -96,10 +93,9 @@ struct Rocks {
     void* renderer_data;
     float global_scaling_factor;
     bool is_running;
-    RenderTexture2D target;  // Raylib uses render textures for scaling
+    RenderTexture2D target;
 };
 
 #endif // ROCKS_USE_RAYLIB
 
 #endif // ROCKS_TYPES_H
-

@@ -18,10 +18,11 @@ typedef enum {
     TOUCH_STATE_DRAGGING,
 } TouchState;
 
-typedef struct {
+
+struct RocksScrollContainer {
     uint32_t elementId;
     bool openThisFrame;
-} RocksScrollContainer;
+};
 
 typedef struct {
     TTF_Font* font;
@@ -217,29 +218,6 @@ typedef struct {
 
 static InertialScrollState inertial_scroll_state = {0};
 
-static void update_inertial_scroll(RocksSDL2Renderer* r, Clay_ScrollContainerData* scrollData, float delta_time) {
-    if (r->is_scroll_dragging || r->is_scroll_thumb_dragging || r->is_horizontal_scroll_thumb_dragging) {
-        inertial_scroll_state.velocity_x = 0;
-        inertial_scroll_state.velocity_y = 0;
-        return;
-    }
-
-    float decay_factor = 0.9f; // Adjust this value to control the decay speed
-    inertial_scroll_state.velocity_x *= decay_factor;
-    inertial_scroll_state.velocity_y *= decay_factor;
-
-    float newScrollX = scrollData->scrollPosition->x + inertial_scroll_state.velocity_x * delta_time;
-    float newScrollY = scrollData->scrollPosition->y + inertial_scroll_state.velocity_y * delta_time;
-
-    float scrollableWidth = scrollData->contentDimensions.width - scrollData->scrollContainerDimensions.width;
-    float scrollableHeight = scrollData->contentDimensions.height - scrollData->scrollContainerDimensions.height;
-
-    newScrollX = CLAY__MIN(0, CLAY__MAX(newScrollX, -scrollableWidth));
-    newScrollY = CLAY__MIN(0, CLAY__MAX(newScrollY, -scrollableHeight));
-
-    scrollData->scrollPosition->x = newScrollX;
-    scrollData->scrollPosition->y = newScrollY;
-}
 static float get_scroll_sensitivity(Clay_ScrollContainerData* scrollData) {
     float base_sensitivity = 5.0f;
     float content_size_factor = scrollData->contentDimensions.height / scrollData->scrollContainerDimensions.height;
@@ -1022,10 +1000,10 @@ void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                     Clay_ElementId elementId = { .id = cmd->id };
                     
                     if (config->vertical) {
-                        RenderScrollbar(r->renderer, boundingBox, true, mouseX, mouseY, config, elementId, r->scale_factor);
+                        RenderScrollbar(r->renderer, r->rocks, boundingBox, true, mouseX, mouseY, config, elementId, r->scale_factor);
                     }
                     if (config->horizontal) {
-                        RenderScrollbar(r->renderer, boundingBox, false, mouseX, mouseY, config, elementId, r->scale_factor);
+                        RenderScrollbar(r->renderer, r->rocks, boundingBox, false, mouseX, mouseY, config, elementId, r->scale_factor);
                     }
                 }
 

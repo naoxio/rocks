@@ -50,9 +50,9 @@ void RenderScrollbarRect(
     Clay_Color color
 );
 
-
 void RenderScrollbar(
     SDL_Renderer* renderer,
+    Rocks* rocks,
     Clay_BoundingBox boundingBox,
     bool isVertical,
     int mouseX,

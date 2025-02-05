@@ -57,6 +57,7 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
             }),
             CLAY_RECTANGLE({ 
                 .color = theme.primary,
+                .cornerRadius = CLAY_CORNER_RADIUS(8),
                 .cursorPointer = true
             })
         ) {

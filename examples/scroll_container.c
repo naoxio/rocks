@@ -40,7 +40,7 @@ static RocksTheme create_custom_theme(void) {
     };
 }
 
-static bool load_resources(Rocks* rocks) {
+static bool load_resources(void) {
     g_font_ids[FONT_TITLE] = rocks_load_font("assets/Roboto-Bold.ttf", 32, FONT_TITLE);
     if (g_font_ids[FONT_TITLE] == UINT16_MAX) return false;
 
@@ -88,10 +88,15 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
                     .childGap = 8,
                     .layoutDirection = CLAY_TOP_TO_BOTTOM 
                 }),
-                CLAY_SCROLL({ .vertical = true })
+                CLAY_SCROLL({ 
+                    .vertical = true,
+                    .horizontal = false
+                })
             ) {
+
                 for (int i = 0; i < 50; i++) {
                     snprintf(item_texts[i], sizeof(item_texts[i]), "Item %d", i + 1);
+                    // Convert the string into a Clay_String with the correct length
                     Clay_String item_string = {
                         .chars = item_texts[i],
                         .length = strlen(item_texts[i])
@@ -105,7 +110,8 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
                         }),
                         CLAY_RECTANGLE({ 
                             .color = theme.background,
-                            .cornerRadius = CLAY_CORNER_RADIUS(6)
+                            .cornerRadius = CLAY_CORNER_RADIUS(6),
+                            .cursorPointer = true
                         })
                     ) {
                         CLAY_TEXT(item_string, CLAY_TEXT_CONFIG({
@@ -131,7 +137,6 @@ int main(void) {
         .scale_factor = 1.0f
     };
 
-
 #ifdef ROCKS_USE_SDL2
     RocksSDL2Config sdl_config = {
         .window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE,
@@ -145,8 +150,11 @@ int main(void) {
 
 #ifdef ROCKS_USE_RAYLIB
     RocksRaylibConfig raylib_config = {
+        .scale_factor = 1.0f,
+        .vsync = true,
+        .high_dpi = true,
         .screen_width = 800,
-        .screen_height = 600
+        .screen_height = 800
     };
     config.renderer_config = &raylib_config;
 #endif
@@ -159,7 +167,7 @@ int main(void) {
     Rocks* rocks = rocks_init(config);
     if (!rocks) return 1;
 
-    if (!load_resources(rocks)) {
+    if (!load_resources()) {
         rocks_cleanup(rocks);
         return 1;
     }

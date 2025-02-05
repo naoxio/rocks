@@ -5,6 +5,7 @@
 #include <SDL2_gfxPrimitives.h>
 #include <math.h>
 #include "rocks.h"
+
 // Memory utils for SDL renderer
 void* SDL_AllocateAligned(size_t alignment, size_t size) {
     if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
@@ -231,6 +232,7 @@ void RenderScrollbarRect(
 }
 void RenderScrollbar(
     SDL_Renderer* renderer,
+    Rocks* rocks,
     Clay_BoundingBox boundingBox,
     bool isVertical,
     int mouseX,
@@ -243,7 +245,7 @@ void RenderScrollbar(
     if (!scrollData.found) return;
 
     // Get theme colors from rocks global instance
-    RocksTheme theme = rocks_get_theme(g_rocks);
+    RocksTheme theme = rocks_get_theme(rocks);
 
     float viewportSize = isVertical ? boundingBox.height : boundingBox.width;
     float contentSize = isVertical ? scrollData.contentDimensions.height : scrollData.contentDimensions.width;

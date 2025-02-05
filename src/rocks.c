@@ -1,29 +1,15 @@
+// rocks.c
 #include "rocks.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define DEFAULT_ARENA_SIZE (1024 * 1024 * 8) // 8MB
 
 // Define the global Rocks instance
 Rocks* g_rocks = NULL;
-
-#ifdef ROCKS_USE_SDL2
-#include "renderer/sdl2_renderer.h"
-SDL_Renderer* rocks_get_renderer(void) {
-    if (!g_rocks) return NULL;
-    return g_rocks->renderer;
-}
-#endif
-
-#ifdef ROCKS_USE_RAYLIB
-#include "renderer/raylib_renderer.h"
-RocksRaylibRenderer* rocks_get_raylib_renderer(void) {
-    if (!g_rocks || !g_rocks->renderer_data) return NULL;
-    return (RocksRaylibRenderer*)g_rocks->renderer_data;
-}
-#endif
 
 static void begin_frame(Rocks* rocks) {
     Clay_SetLayoutDimensions((Clay_Dimensions){
@@ -38,10 +24,8 @@ static void begin_frame(Rocks* rocks) {
 }
 
 Rocks* rocks_init(RocksConfig config) {
-    if (g_rocks) {
-        // If g_rocks is already initialized, return it
-        return g_rocks;
-    }
+    if (g_rocks) return g_rocks;
+
     Rocks* rocks = calloc(1, sizeof(Rocks));
     if (!rocks) return NULL;
 
@@ -53,20 +37,17 @@ Rocks* rocks_init(RocksConfig config) {
         rocks->config.arena_size = DEFAULT_ARENA_SIZE;
     }
 
-    // Allocate memory for the Clay arena
     void* arena_memory = malloc(rocks->config.arena_size);
     if (!arena_memory) {
         free(rocks);
         return NULL;
     }
 
-    // Initialize the Clay arena
     rocks->clay_arena = Clay_CreateArenaWithCapacityAndMemory(
         rocks->config.arena_size, 
         arena_memory
     );
 
-    // Initialize the Clay context
     Clay_ErrorHandler error_handler = {0};
     Clay_Initialize(rocks->clay_arena, 
         (Clay_Dimensions){ 
@@ -76,7 +57,6 @@ Rocks* rocks_init(RocksConfig config) {
         error_handler
     );
 
-    // Set the current context
     Clay_SetCurrentContext(Clay_GetCurrentContext());
 
 #ifdef ROCKS_USE_SDL2
@@ -88,6 +68,11 @@ Rocks* rocks_init(RocksConfig config) {
 #endif
 
 #ifdef ROCKS_USE_RAYLIB
+    // Update raylib config with scale factor
+    RocksRaylibConfig* raylib_config = (RocksRaylibConfig*)rocks->config.renderer_config;
+    if (raylib_config) {
+        raylib_config->scale_factor = rocks->global_scaling_factor;
+    }
     if (!rocks_raylib_init(rocks, rocks->config.renderer_config)) {
         free(rocks->clay_arena.memory);
         free(rocks);
@@ -95,10 +80,38 @@ Rocks* rocks_init(RocksConfig config) {
     }
 #endif
 
-    // Set the global Rocks instance
     g_rocks = rocks;
     return rocks;
 }
+
+
+void rocks_set_window_size(Rocks* rocks, int width, int height) {
+    if (!rocks) return;
+    
+#ifdef ROCKS_USE_SDL2
+    rocks_sdl2_set_window_size(rocks, width, height);
+#endif
+
+#ifdef ROCKS_USE_RAYLIB
+    rocks_raylib_set_window_size(rocks, width, height);
+#endif
+
+    rocks->config.window_width = width;
+    rocks->config.window_height = height;
+}
+
+void rocks_toggle_fullscreen(Rocks* rocks) {
+    if (!rocks) return;
+
+#ifdef ROCKS_USE_SDL2
+    rocks_sdl2_toggle_fullscreen(rocks);
+#endif
+
+#ifdef ROCKS_USE_RAYLIB
+    rocks_raylib_toggle_fullscreen(rocks);
+#endif
+}
+
 
 void rocks_cleanup(Rocks* rocks) {
     if (!rocks) return;
@@ -116,53 +129,48 @@ void rocks_cleanup(Rocks* rocks) {
     g_rocks = NULL;
 }
 
+void rocks_start_text_input(void) {
+    #ifdef ROCKS_USE_SDL2
+        SDL_StartTextInput();
+    #endif
+}
+
+void rocks_stop_text_input(void) {
+    #ifdef ROCKS_USE_SDL2
+        SDL_StopTextInput();
+    #endif
+}
+
 void rocks_run(Rocks* rocks, RocksUpdateFunction update) {
-    float last_time = 0;
-
-#ifdef ROCKS_USE_SDL2
-    last_time = SDL_GetTicks() / 1000.0f;
-#endif
-
-#ifdef ROCKS_USE_RAYLIB
-    last_time = rocks_raylib_get_time();
-#endif
+    float last_time = rocks_get_time(rocks);
 
     while (rocks->is_running) {
-        float current_time = 0;
-
-#ifdef ROCKS_USE_SDL2
-        current_time = SDL_GetTicks() / 1000.0f;
-#endif
-
-#ifdef ROCKS_USE_RAYLIB
-        current_time = rocks_raylib_get_time();
-#endif
-
+        float current_time = rocks_get_time(rocks);
         rocks->input.deltaTime = current_time - last_time;
         last_time = current_time;
 
-#ifdef ROCKS_USE_SDL2
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            rocks_sdl2_handle_event(rocks, &event);
-        }
-#endif
+        #ifdef ROCKS_USE_SDL2
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                rocks_sdl2_handle_event(rocks, &event);
+            }
+        #endif
 
-#ifdef ROCKS_USE_RAYLIB
-        rocks_raylib_process_events(rocks);
-#endif
+        #ifdef ROCKS_USE_RAYLIB
+            rocks_raylib_process_events(rocks);
+        #endif
 
         begin_frame(rocks);
 
         Clay_RenderCommandArray commands = update(rocks, rocks->input.deltaTime);
 
-#ifdef ROCKS_USE_SDL2
-        rocks_sdl2_render(rocks, commands);
-#endif
+        #ifdef ROCKS_USE_SDL2
+            rocks_sdl2_render(rocks, commands);
+        #endif
 
-#ifdef ROCKS_USE_RAYLIB
-        rocks_raylib_render(rocks, commands);
-#endif
+        #ifdef ROCKS_USE_RAYLIB
+            rocks_raylib_render(rocks, commands);
+        #endif
     }
 }
 
@@ -263,4 +271,22 @@ Clay_Dimensions rocks_get_image_dimensions(Rocks* rocks, void* image_data) {
 #endif
 
     return (Clay_Dimensions){0, 0};
+}
+
+float rocks_get_time(Rocks* rocks) {
+    #ifdef ROCKS_USE_SDL2
+        return SDL_GetTicks() / 1000.0f;
+    #endif
+
+    #ifdef ROCKS_USE_RAYLIB
+        return rocks_raylib_get_time();
+    #endif
+
+    #ifdef __EMSCRIPTEN__
+        // For WASM/Emscripten
+        return emscripten_get_now() / 1000.0f;
+    #endif
+
+    // Default fallback using standard C
+    return (float)clock() / CLOCKS_PER_SEC;
 }
