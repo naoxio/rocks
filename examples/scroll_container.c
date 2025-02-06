@@ -20,8 +20,8 @@ enum {
 
 static uint16_t g_font_ids[FONT_COUNT];
 
-static RocksTheme create_custom_theme(void) {
-    return (RocksTheme){
+static Rocks_Theme create_custom_theme(void) {
+    return (Rocks_Theme){
         .background = (Clay_Color){18, 18, 18, 255},   // Darker background
         .background_hover = (Clay_Color){30, 30, 30, 255},
         .background_focused = (Clay_Color){35, 35, 35, 255},
@@ -41,19 +41,19 @@ static RocksTheme create_custom_theme(void) {
 }
 
 static bool load_resources(void) {
-    g_font_ids[FONT_TITLE] = rocks_load_font("assets/Roboto-Bold.ttf", 32, FONT_TITLE);
+    g_font_ids[FONT_TITLE] = Rocks_LoadFont("assets/Roboto-Bold.ttf", 32, FONT_TITLE);
     if (g_font_ids[FONT_TITLE] == UINT16_MAX) return false;
 
-    g_font_ids[FONT_BODY] = rocks_load_font("assets/Roboto-Regular.ttf", 16, FONT_BODY);
+    g_font_ids[FONT_BODY] = Rocks_LoadFont("assets/Roboto-Regular.ttf", 16, FONT_BODY);
     if (g_font_ids[FONT_BODY] == UINT16_MAX) {
-        rocks_unload_font(g_font_ids[FONT_TITLE]);
+        Rocks_UnloadFont(g_font_ids[FONT_TITLE]);
         return false;
     }
     return true;
 }
 
 static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
-    RocksTheme theme = rocks_get_theme(rocks);
+    Rocks_Theme theme = Rocks_GetTheme(rocks);
     static char item_texts[50][32];
 
     CLAY(CLAY_ID("MainContainer"),
@@ -129,7 +129,7 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
 }
 
 int main(void) {
-    RocksConfig config = {
+    Rocks_Config config = {
         .window_width = 800,
         .window_height = 800,
         .window_title = "Scrollable List Example",
@@ -138,7 +138,7 @@ int main(void) {
     };
 
 #ifdef ROCKS_USE_SDL2
-    RocksSDL2Config sdl_config = {
+    Rocks_ConfigSDL2 sdl_config = {
         .window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE,
         .renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC,
         .scale_factor = 1.0f,
@@ -149,7 +149,7 @@ int main(void) {
 #endif
 
 #ifdef ROCKS_USE_RAYLIB
-    RocksRaylibConfig raylib_config = {
+    Rocks_RaylibConfig raylib_config = {
         .scale_factor = 1.0f,
         .vsync = true,
         .high_dpi = true,
@@ -164,19 +164,19 @@ int main(void) {
     return 1;
 #endif
 
-    Rocks* rocks = rocks_init(config);
+    Rocks* rocks = Rocks_Init(config);
     if (!rocks) return 1;
 
     if (!load_resources()) {
-        rocks_cleanup(rocks);
+        Rocks_Cleanup(rocks);
         return 1;
     }
 
-    rocks_run(rocks, update);
+    Rocks_Run(rocks, update);
 
-    rocks_unload_font(g_font_ids[FONT_TITLE]);
-    rocks_unload_font(g_font_ids[FONT_BODY]);
-    rocks_cleanup(rocks);
+    Rocks_UnloadFont(g_font_ids[FONT_TITLE]);
+    Rocks_UnloadFont(g_font_ids[FONT_BODY]);
+    Rocks_Cleanup(rocks);
     
     return 0;
 }

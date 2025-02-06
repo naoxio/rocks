@@ -16,7 +16,9 @@ target("rocks")
     -- Headers - make them public so dependents can use them
     add_includedirs("include", {public = true})
     add_files("src/*.c")
+    add_files("src/components/*.c")
     add_headerfiles("include/*.h")
+    add_headerfiles("include/components/*.h")
 
     -- Clay dependency
     add_includedirs("clay", {public = true})
@@ -78,3 +80,4 @@ end
 add_example("hello_world")
 add_example("image_viewer")
 add_example("scroll_container")
+add_example("text_input")

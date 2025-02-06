@@ -7,65 +7,10 @@
 #include <math.h>
 #include <string.h>
 
-// Constants
-static const float SCROLLBAR_FADE_DURATION = 0.6f;
-static const float SCROLLBAR_HIDE_DELAY = 0.6f;
-
-// Touch state tracking
-typedef enum {
-    TOUCH_STATE_NONE,
-    TOUCH_STATE_DOWN,
-    TOUCH_STATE_DRAGGING,
-} TouchState;
-
-
-struct RocksScrollContainer {
-    uint32_t elementId;
-    bool openThisFrame;
-};
-
-typedef struct {
-    TTF_Font* font;
-} RockSDL2Font;
-
-typedef struct {
-    SDL_Window* window;
-    SDL_Renderer* renderer;
-    float scale_factor;
-    RockSDL2Font fonts[32];
-    SDL_Cursor* default_cursor;
-    SDL_Cursor* pointer_cursor;
-    SDL_Cursor* current_cursor;
-    float scrollbar_opacity;
-    float last_mouse_move_time;
-    SDL_Rect current_clip_rect;
-    Rocks* rocks;
-
-    // Scroll container tracking
-    RocksScrollContainer scroll_containers[32];
-    int scroll_container_count;
-    
-    // Scrolling state
-    TouchState current_touch_state;
-    SDL_FingerID active_touch_id;
-    Uint32 last_touch_time;
-    Uint32 last_successful_click_time;
-    bool had_motion_between_down_and_up;
-    Clay_ScrollContainerData* active_scroll_container;
-    uint32_t active_scroll_container_id;
-    bool is_scroll_thumb_dragging;
-    bool is_horizontal_scroll_thumb_dragging;
-    bool is_scroll_dragging;
-    float scroll_drag_start_x;
-    float scroll_drag_start_y;
-    Clay_Vector2 initial_scroll_position;
-    Clay_Vector2 initial_pointer_position;
-} RocksSDL2Renderer;
-
 // Function implementations...
 
-void* rocks_sdl2_load_image(Rocks* rocks, const char* path) {
-    RocksSDL2Renderer* r = rocks->renderer_data;
+void* Rocks_LoadImageSDL2(Rocks* rocks, const char* path) {
+    Rocks_SDL2Renderer* r = rocks->renderer_data;
     if (!r || !r->renderer) return NULL;
 
     SDL_Surface* surface = IMG_Load(path);
@@ -85,12 +30,12 @@ void* rocks_sdl2_load_image(Rocks* rocks, const char* path) {
     return texture;
 }
 
-void rocks_sdl2_unload_image(Rocks* rocks, void* image_data) {
+void Rocks_UnloadImageSDL2(Rocks* rocks, void* image_data) {
     if (!image_data) return;
     SDL_DestroyTexture((SDL_Texture*)image_data);
 }
 
-Clay_Dimensions rocks_sdl2_get_image_dimensions(Rocks* rocks, void* image_data) {
+Clay_Dimensions Rocks_GetImageDimensionsSDL2(Rocks* rocks, void* image_data) {
     if (!image_data) return (Clay_Dimensions){0, 0};
     
     SDL_Texture* texture = (SDL_Texture*)image_data;
@@ -102,7 +47,7 @@ Clay_Dimensions rocks_sdl2_get_image_dimensions(Rocks* rocks, void* image_data) 
         .height = (float)h
     };
 }
-static Clay_ScrollContainerData* find_active_scroll_container(RocksSDL2Renderer* r, Clay_Vector2 pointerPosition) {
+static Clay_ScrollContainerData* FindActiveScrollContainer(Rocks_SDL2Renderer* r, Clay_Vector2 pointerPosition) {
     Clay_SetPointerState(pointerPosition, false);
 
     Clay_ElementId scrollId = {0};
@@ -112,9 +57,6 @@ static Clay_ScrollContainerData* find_active_scroll_container(RocksSDL2Renderer*
         if (Clay_PointerOver((Clay_ElementId){.id = r->scroll_containers[i].elementId})) {
             scrollId.id = r->scroll_containers[i].elementId;
             found = true;
-
-            // Debug log: Print the scroll container ID under the pointer
-            printf("Scroll container under pointer: ID=%u\n", scrollId.id);
             break;
         }
     }
@@ -134,7 +76,7 @@ static Clay_ScrollContainerData* find_active_scroll_container(RocksSDL2Renderer*
     return NULL;
 }
 
-static void handle_pointer_dragging(RocksSDL2Renderer* r, float x, float y) {
+static void HandlePointerDragging(Rocks_SDL2Renderer* r, float x, float y) {
     Clay_ScrollContainerData* scrollData = r->active_scroll_container;
     if (!scrollData) return;
 
@@ -192,7 +134,7 @@ static void handle_pointer_dragging(RocksSDL2Renderer* r, float x, float y) {
 }
 
 
-static void cleanup_active_scroll_container(RocksSDL2Renderer* r) {
+static void CleanupActiveScrollContainer(Rocks_SDL2Renderer* r) {
     if (r->active_scroll_container) {
         free(r->active_scroll_container);
         r->active_scroll_container = NULL;
@@ -203,7 +145,7 @@ static void cleanup_active_scroll_container(RocksSDL2Renderer* r) {
     r->is_horizontal_scroll_thumb_dragging = false;
 }
 
-static void reset_scroll_container(RocksSDL2Renderer* r) {
+static void ResetScrollContainer(Rocks_SDL2Renderer* r) {
     r->is_scroll_thumb_dragging = false;
     r->is_horizontal_scroll_thumb_dragging = false;
     r->is_scroll_dragging = false;
@@ -214,11 +156,11 @@ typedef struct {
     float velocity_x;
     float velocity_y;
     float last_scroll_time;
-} InertialScrollState;
+} Rocks_InertialScrollState;
 
-static InertialScrollState inertial_scroll_state = {0};
+static Rocks_InertialScrollState inertial_scroll_state = {0};
 
-static float get_scroll_sensitivity(Clay_ScrollContainerData* scrollData) {
+static float GetScrollSensitivity(Clay_ScrollContainerData* scrollData) {
     float base_sensitivity = 5.0f;
     float content_size_factor = scrollData->contentDimensions.height / scrollData->scrollContainerDimensions.height;
     return base_sensitivity * content_size_factor;
@@ -245,7 +187,7 @@ static bool should_process_scroll_event() {
 }
 
 static void handle_mouse_scrollbar_interaction(
-    RocksSDL2Renderer* r,
+    Rocks_SDL2Renderer* r,
     SDL_MouseButtonEvent* event,
     Clay_ScrollContainerData* scrollData,
     Clay_ElementId elementId
@@ -331,7 +273,7 @@ static void handle_mouse_scrollbar_interaction(
 
 
 static Clay_Dimensions rocks_sdl2_measure_text(Clay_StringSlice text, Clay_TextElementConfig* config, uintptr_t userData) {
-    RocksSDL2Renderer* r = (RocksSDL2Renderer*)userData;
+    Rocks_SDL2Renderer* r = (Rocks_SDL2Renderer*)userData;
     
     if (config->fontId >= 32 || !r->fonts[config->fontId].font) {
         return (Clay_Dimensions){0, 0};
@@ -364,15 +306,15 @@ static Clay_Dimensions rocks_sdl2_measure_text(Clay_StringSlice text, Clay_TextE
     };
 }
 
-bool rocks_sdl2_init(Rocks* rocks, void* config) {
+bool Rocks_InitSDL2(Rocks* rocks, void* config) {
     printf("Initializing SDL2 renderer...\n");
 
     if (!rocks || !config) {
-        printf("Error: Invalid arguments to rocks_sdl2_init\n");
+        printf("Error: Invalid arguments to Rocks_InitSDL2\n");
         return false;
     }
 
-    RocksSDL2Config* sdl_config = (RocksSDL2Config*)config;
+    Rocks_ConfigSDL2* sdl_config = (Rocks_ConfigSDL2*)config;
 
     printf("Initializing <SDL> and TTF...\n");
     if (SDL_Init(SDL_INIT_VIDEO) < 0 || TTF_Init() < 0) {
@@ -380,7 +322,7 @@ bool rocks_sdl2_init(Rocks* rocks, void* config) {
         return false;
     }
 
-    RocksSDL2Renderer* r = calloc(1, sizeof(RocksSDL2Renderer));
+    Rocks_SDL2Renderer* r = calloc(1, sizeof(Rocks_SDL2Renderer));
     if (!r) {
         printf("Error: Failed to allocate memory for SDL2 renderer\n");
         return false;
@@ -459,8 +401,8 @@ bool rocks_sdl2_init(Rocks* rocks, void* config) {
     return true;
 }
 
-void rocks_sdl2_cleanup(Rocks* rocks) {
-    RocksSDL2Renderer* r = rocks->renderer_data;
+void Rocks_CleanupSDL2(Rocks* rocks) {
+    Rocks_SDL2Renderer* r = rocks->renderer_data;
     if (!r) return;
     
     for (int i = 0; i < 32; i++) {
@@ -479,8 +421,8 @@ void rocks_sdl2_cleanup(Rocks* rocks) {
     SDL_Quit();
 }
 
-uint16_t rocks_sdl2_load_font(Rocks* rocks, const char* path, int size, uint16_t expected_id) {
-    RocksSDL2Renderer* r = rocks->renderer_data;
+uint16_t Rocks_LoadFontSDL2(Rocks* rocks, const char* path, int size, uint16_t expected_id) {
+    Rocks_SDL2Renderer* r = rocks->renderer_data;
     if (!r) return UINT16_MAX;
 
     // Validate expected_id
@@ -513,8 +455,8 @@ uint16_t rocks_sdl2_load_font(Rocks* rocks, const char* path, int size, uint16_t
     return expected_id;
 }
 
-void rocks_sdl2_unload_font(Rocks* rocks, uint16_t font_id) {
-    RocksSDL2Renderer* r = rocks->renderer_data;
+void Rocks_UnloadFontSDL2(Rocks* rocks, uint16_t font_id) {
+    Rocks_SDL2Renderer* r = rocks->renderer_data;
     if (!r || font_id >= 32) return;
 
     if (r->fonts[font_id].font) {
@@ -523,12 +465,12 @@ void rocks_sdl2_unload_font(Rocks* rocks, uint16_t font_id) {
     }
 }
 
-float rocks_sdl2_get_time(void) {
+float Rocks_GetTimeSDL2(void) {
     return SDL_GetTicks() / 1000.0f;
 }
 
-void rocks_sdl2_set_window_size(Rocks* rocks, int width, int height) {
-    RocksSDL2Renderer* r = rocks->renderer_data;
+void Rocks_SetWindowSizeSDL2(Rocks* rocks, int width, int height) {
+    Rocks_SDL2Renderer* r = rocks->renderer_data;
     if (!r || !r->window) return;
 
     SDL_SetWindowSize(r->window, width, height);
@@ -541,8 +483,8 @@ void rocks_sdl2_set_window_size(Rocks* rocks, int width, int height) {
     });
 }
 
-void rocks_sdl2_toggle_fullscreen(Rocks* rocks) {
-    RocksSDL2Renderer* r = rocks->renderer_data;
+void Rocks_ToggleFullscreenSDL2(Rocks* rocks) {
+    Rocks_SDL2Renderer* r = rocks->renderer_data;
     if (!r || !r->window) return;
 
     bool isFullscreen = SDL_GetWindowFlags(r->window) & SDL_WINDOW_FULLSCREEN;
@@ -552,12 +494,12 @@ void rocks_sdl2_toggle_fullscreen(Rocks* rocks) {
         // Store window dimensions for restoring later
         int w, h;
         SDL_GetWindowSize(r->window, &w, &h);
-        rocks_sdl2_set_window_size(rocks, w, h);
+        Rocks_SetWindowSizeSDL2(rocks, w, h);
     }
 }
 
-void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
-    RocksSDL2Renderer* r = rocks->renderer_data;
+void Rocks_HandleEventSDL2(Rocks* rocks, void* event) {
+    Rocks_SDL2Renderer* r = rocks->renderer_data;
     SDL_Event* sdl_event = (SDL_Event*)event;
     static float last_time = 0;
     float current_time = SDL_GetTicks() / 1000.0f;
@@ -589,7 +531,7 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
                 (float)sdl_event->wheel.mouseY / r->scale_factor
             };
 
-            r->active_scroll_container = find_active_scroll_container(r, currentPos);
+            r->active_scroll_container = FindActiveScrollContainer(r, currentPos);
 
             // Check if active_scroll_container is valid
             if (!r->active_scroll_container) {
@@ -597,7 +539,7 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
                 break;
             }
 
-            float scrollMultiplier = get_scroll_sensitivity(r->active_scroll_container);
+            float scrollMultiplier = GetScrollSensitivity(r->active_scroll_container);
             Clay_Vector2 scrollDelta = {0, 0};
 
             if (sdl_event->wheel.x != 0 && r->active_scroll_container->config.horizontal) {
@@ -632,13 +574,13 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
             r->had_motion_between_down_and_up = false;
             
             if (sdl_event->button.button == SDL_BUTTON_LEFT) {
-                cleanup_active_scroll_container(r);
+                CleanupActiveScrollContainer(r);
                 
-                r->active_scroll_container = find_active_scroll_container(r, r->initial_pointer_position);
+                r->active_scroll_container = FindActiveScrollContainer(r, r->initial_pointer_position);
                 
                 if (r->active_scroll_container) {
                     if (r->active_scroll_container_id == 0) {
-                        cleanup_active_scroll_container(r);
+                        CleanupActiveScrollContainer(r);
                         break;
                     }
                     
@@ -663,7 +605,7 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
             
             if (r->active_scroll_container && 
                 (r->is_scroll_thumb_dragging || r->is_horizontal_scroll_thumb_dragging || r->is_scroll_dragging)) {
-                handle_pointer_dragging(r, sdl_event->motion.x, sdl_event->motion.y);
+                HandlePointerDragging(r, sdl_event->motion.x, sdl_event->motion.y);
             }
             break;
         }
@@ -684,8 +626,8 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
             
             Clay_SetPointerState(upPosition, false);
             
-            reset_scroll_container(r);
-            cleanup_active_scroll_container(r);
+            ResetScrollContainer(r);
+            CleanupActiveScrollContainer(r);
             break;
         }
 
@@ -722,7 +664,7 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
             Clay_SetPointerState(r->initial_pointer_position, false);
             r->had_motion_between_down_and_up = false;
 
-            r->active_scroll_container = find_active_scroll_container(r, r->initial_pointer_position);
+            r->active_scroll_container = FindActiveScrollContainer(r, r->initial_pointer_position);
 
             if (r->active_scroll_container) {
                 r->scroll_drag_start_x = screenX;
@@ -763,11 +705,11 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
             
             if (r->current_touch_state == TOUCH_STATE_DRAGGING) {
                 if (!r->active_scroll_container) {
-                    r->active_scroll_container = find_active_scroll_container(r, currentPos);
+                    r->active_scroll_container = FindActiveScrollContainer(r, currentPos);
                 }
                 
                 if (r->active_scroll_container) {
-                    handle_pointer_dragging(r, screenX, screenY);
+                    HandlePointerDragging(r, screenX, screenY);
                 }
             }
             
@@ -776,14 +718,6 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
             }
             break;
         }
-
-        case SDL_KEYDOWN:
-            if (sdl_event->key.keysym.sym == SDLK_F11 ||
-                (sdl_event->key.keysym.sym == SDLK_RETURN && 
-                 sdl_event->key.keysym.mod & KMOD_ALT)) {
-                rocks_sdl2_toggle_fullscreen(rocks);
-            }
-            break;
 
         case SDL_FINGERUP: {
             if (sdl_event->tfinger.fingerId != r->active_touch_id || 
@@ -827,18 +761,51 @@ void rocks_sdl2_handle_event(Rocks* rocks, void* event) {
             r->had_motion_between_down_and_up = false;
             break;
         }
+
+        case SDL_TEXTINPUT:
+            rocks->input.charPressed = sdl_event->text.text[0];
+            break;
+        case SDL_KEYDOWN:
+            switch (sdl_event->key.keysym.sym) {
+                case SDLK_RETURN: rocks->input.enterPressed = true; break;
+                case SDLK_BACKSPACE: rocks->input.backspacePressed = true; break;
+                case SDLK_LEFT: rocks->input.leftPressed = true; break;
+                case SDLK_RIGHT: rocks->input.rightPressed = true; break;
+            }
+
+            if (sdl_event->key.keysym.sym == SDLK_F11 ||
+                (sdl_event->key.keysym.sym == SDLK_RETURN && 
+                 sdl_event->key.keysym.mod & KMOD_ALT)) {
+                Rocks_ToggleFullscreenSDL2(rocks);
+            }
+            break;
+        case SDL_KEYUP:
+            switch (sdl_event->key.keysym.sym) {
+                case SDLK_RETURN: rocks->input.enterPressed = false; break;
+                case SDLK_BACKSPACE: rocks->input.backspacePressed = false; break;
+                case SDLK_LEFT: rocks->input.leftPressed = false; break;
+                case SDLK_RIGHT: rocks->input.rightPressed = false; break;
+            }
+            break;
     }
 }
 
-void rocks_sdl2_process_events(Rocks* rocks) {
+void Rocks_ProcessEventsSDL2(Rocks* rocks) {
+    // Reset input state
+    rocks->input.charPressed = 0;
+    rocks->input.enterPressed = false;
+    rocks->input.backspacePressed = false;
+    rocks->input.leftPressed = false;
+    rocks->input.rightPressed = false;
+
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-        rocks_sdl2_handle_event(rocks, &event);
+        Rocks_HandleEventSDL2(rocks, &event);
     }
 }
 
-void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
-    RocksSDL2Renderer* r = rocks->renderer_data;
+void Rocks_RenderSDL2(Rocks* rocks, Clay_RenderCommandArray commands) {
+    Rocks_SDL2Renderer* r = rocks->renderer_data;
     if (!r || !r->renderer) {
         printf("Error: Renderer or renderer data is NULL\n");
         return;
@@ -991,9 +958,6 @@ void rocks_sdl2_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                         r->scroll_containers[r->scroll_container_count].openThisFrame = true;
                         r->scroll_container_count++;
 
-                        // Debug log: Print scroll container ID and dimensions
-                        printf("Scroll container detected: ID=%u, Dimensions=(%.2f, %.2f)\n",
-                            cmd->id, cmd->boundingBox.width, cmd->boundingBox.height);
                     }
 
                     Clay_ScrollElementConfig* config = cmd->config.scrollElementConfig;

@@ -37,6 +37,7 @@ echo "Which example would you like to launch?"
 echo "1. hello_world"
 echo "2. image_viewer"
 echo "3. scroll_container"
+echo "4. text_input"
 read -p "Enter the number of your choice: " example_choice
 
 # Navigate to the build directory
@@ -52,6 +53,9 @@ case $example_choice in
         ;;
     3)
         ./scroll_container
+        ;;
+    4)
+        ./text_input
         ;;
     *)
         echo "Invalid choice. Please run the script again and select a valid option."

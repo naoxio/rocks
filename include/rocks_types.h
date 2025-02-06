@@ -5,22 +5,36 @@
 
 // Forward declarations
 typedef struct Rocks Rocks;
-typedef struct RocksRaylibRenderer RocksRaylibRenderer;
-typedef struct RocksScrollContainer RocksScrollContainer;
-typedef struct ScrollState ScrollState;
+typedef struct Rocks_RaylibRenderer Rocks_RaylibRenderer;
+typedef struct Rocks_ScrollState Rocks_ScrollState;
 
-typedef struct {
-    float mouseWheelX;
-    float mouseWheelY;
+
+typedef struct Rocks_ScrollContainer {
+    uint32_t elementId;
+    bool openThisFrame;
+} Rocks_ScrollContainer;
+
+
+// rocks_types.h
+typedef struct Rocks_InputState {
+    // Mouse/Touch
     float mousePositionX;
     float mousePositionY;
-    bool isTouchDown;
     bool isMouseDown;
-    bool arrowKeyDownPressed;
-    bool arrowKeyUpPressed;
-    bool dKeyPressed;
+    bool isTouchDown;
     float deltaTime;
-} RocksInputState;
+    
+    // Keyboard
+    int charPressed;
+    bool enterPressed;
+    bool backspacePressed;
+    bool leftPressed;
+    bool rightPressed;
+    
+    // Mouse wheel
+    float scrollDeltaX;
+    float scrollDeltaY;
+} Rocks_InputState;
 
 typedef struct {
     Clay_Color background;
@@ -37,18 +51,21 @@ typedef struct {
     Clay_Color scrollbar_track;
     Clay_Color scrollbar_thumb;
     Clay_Color scrollbar_thumb_hover;
+    Clay_Color border;
+    Clay_Color border_focused;
+    Clay_Color cursor;
     void* extension;
-} RocksTheme;
+} Rocks_Theme;
 
 typedef struct {
     uint32_t window_width;
     uint32_t window_height;
     const char* window_title;
     float scale_factor;
-    RocksTheme theme;
+    Rocks_Theme theme;
     void* renderer_config;
     size_t arena_size;
-} RocksConfig;
+} Rocks_Config;
 
 #ifdef ROCKS_USE_SDL2
 #include <SDL2/SDL.h>
@@ -60,11 +77,11 @@ typedef struct {
     float scale_factor;
     bool vsync;
     bool high_dpi;
-} RocksSDL2Config;
+} Rocks_ConfigSDL2;
 
 struct Rocks {
-    RocksConfig config;
-    RocksInputState input;
+    Rocks_Config config;
+    Rocks_InputState input;
     Clay_Arena clay_arena;
     Clay_RenderCommandArray current_frame_commands;
     void* renderer_data;
@@ -83,11 +100,11 @@ typedef struct {
     float scale_factor;
     bool vsync;
     bool high_dpi;
-} RocksRaylibConfig;
+} Rocks_RaylibConfig;
 
 struct Rocks {
-    RocksConfig config;
-    RocksInputState input;
+    Rocks_Config config;
+    Rocks_InputState input;
     Clay_Arena clay_arena;
     Clay_RenderCommandArray current_frame_commands;
     void* renderer_data;

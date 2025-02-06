@@ -1,5 +1,5 @@
-#ifndef ROCKS_H
-#define ROCKS_H
+#ifndef Rocks_H
+#define Rocks_H
 
 #include "rocks_clay.h"
 #include "rocks_types.h"
@@ -12,48 +12,48 @@
 #include "renderer/raylib_renderer.h"
 #endif
 
-typedef Clay_RenderCommandArray (*RocksUpdateFunction)(Rocks* rocks, float dt);
+typedef Clay_RenderCommandArray (*Rocks_UpdateFunction)(Rocks* rocks, float dt);
 
 // Declare the global Rocks instance
-extern Rocks* g_rocks;
+extern Rocks* GRocks;
 
 // Core functions
-Rocks* rocks_init(RocksConfig config);
-void rocks_cleanup(Rocks* rocks);
-void rocks_run(Rocks* rocks, RocksUpdateFunction update);
+Rocks* Rocks_Init(Rocks_Config config);
+void Rocks_Cleanup(Rocks* rocks);
+void Rocks_Run(Rocks* rocks, Rocks_UpdateFunction update);
 
 // Theme management
-void rocks_set_theme(Rocks* rocks, RocksTheme theme);
-RocksTheme rocks_get_theme(Rocks* rocks);
-RocksTheme rocks_theme_default(void);
+void Rocks_SetTheme(Rocks* rocks, Rocks_Theme theme);
+Rocks_Theme Rocks_GetTheme(Rocks* rocks);
+Rocks_Theme Rocks_ThemeDefault(void);
 
 // Font management
-uint16_t rocks_load_font(const char* path, int size, uint16_t expected_id);
-void rocks_unload_font(uint16_t font_id);
+uint16_t Rocks_LoadFont(const char* path, int size, uint16_t expected_id);
+void Rocks_UnloadFont(uint16_t font_id);
 
 // Image management
-void* rocks_load_image(Rocks* rocks, const char* path);
-void rocks_unload_image(Rocks* rocks, void* image_data);
-Clay_Dimensions rocks_get_image_dimensions(Rocks* rocks, void* image_data);
+void* Rocks_LoadImage(Rocks* rocks, const char* path);
+void Rocks_UnloadImage(Rocks* rocks, void* image_data);
+Clay_Dimensions Rocks_GetImageDimensions(Rocks* rocks, void* image_data);
 
 // Window management
-void rocks_set_window_size(Rocks* rocks, int width, int height);
-void rocks_toggle_fullscreen(Rocks* rocks);
+void Rocks_SetWindowSize(Rocks* rocks, int width, int height);
+void Rocks_ToggleFullscreen(Rocks* rocks);
 
 // Input handling
-void rocks_start_text_input(void);
-void rocks_stop_text_input(void);
+void Rocks_StartTextInput(void);
+void Rocks_StopTextInput(void);
 
 // Utility functions
-float rocks_get_time(Rocks* rocks);
+float Rocks_GetTime(Rocks* rocks);
 
 // Renderer-specific functions
 #ifdef ROCKS_USE_SDL2
-SDL_Renderer* rocks_get_renderer(void);
+SDL_Renderer* Rocks_GetRenderer(void);
 #endif
 
 #ifdef ROCKS_USE_RAYLIB
-RocksRaylibRenderer* rocks_get_raylib_renderer(void);
+Rocks_RaylibRenderer* Rocks_GetRaylibRenderer(void);
 #endif
 
-#endif // ROCKS_H
+#endif // Rocks_H

@@ -9,11 +9,11 @@
 #define SCROLLBAR_HIDE_DELAY 0.6f
 #define TOUCH_THRESHOLD 40.0f
 
-static ScrollState g_scroll_state = {0};
+static Rocks_ScrollState g_scroll_state = {0};
 
 // Helper functions
-Clay_Dimensions rocks_raylib_measure_text(Clay_StringSlice text, Clay_TextElementConfig* config, uintptr_t userData) {
-    RocksRaylibRenderer* r = (RocksRaylibRenderer*)userData;
+Clay_Dimensions Rocks_MeasureTextRaylib(Clay_StringSlice text, Clay_TextElementConfig* config, uintptr_t userData) {
+    Rocks_RaylibRenderer* r = (Rocks_RaylibRenderer*)userData;
     if (!text.chars || text.length == 0 || config->fontId >= 32 || !r->fonts[config->fontId].font.baseSize) {
         return (Clay_Dimensions){0, 0};
     }
@@ -31,7 +31,7 @@ Clay_Dimensions rocks_raylib_measure_text(Clay_StringSlice text, Clay_TextElemen
     return (Clay_Dimensions){textSize.x, textSize.y};
 }
 
-static void update_scroll_state(RocksRaylibRenderer* r) {
+static void UpdateScrollState(Rocks_RaylibRenderer* r) {
     const float DECELERATION = 0.95f;
     const float MIN_VELOCITY = 0.1f;
     
@@ -61,8 +61,8 @@ static void update_scroll_state(RocksRaylibRenderer* r) {
         scrollData.scrollPosition->y = Clamp(scrollData.scrollPosition->y, maxScrollY, 0);
     }
 }
-static void render_scrollbar(
-    RocksRaylibRenderer* r,
+static void RenderScrollbar(
+    Rocks_RaylibRenderer* r,
     Clay_BoundingBox boundingBox,
     bool isVertical,
     Clay_ScrollElementConfig* config,
@@ -71,7 +71,7 @@ static void render_scrollbar(
     Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
     if (!scrollData.found) return;
 
-    RocksTheme theme = rocks_get_theme(r->rocks);
+    Rocks_Theme theme = Rocks_GetTheme(r->rocks);
     
     float viewportSize = isVertical ? scrollData.scrollContainerDimensions.height : scrollData.scrollContainerDimensions.width;
     float contentSize = isVertical ? scrollData.contentDimensions.height : scrollData.contentDimensions.width;
@@ -123,7 +123,7 @@ static void render_scrollbar(
     DrawRectangleRec(thumb, thumbColor);
 }
 
-static void update_cursor(RocksRaylibRenderer* r) {
+static void UpdateCursor(Rocks_RaylibRenderer* r) {
     bool hasPointerElement = false;
     Vector2 mousePos = GetMousePosition();
 
@@ -149,8 +149,8 @@ static void update_cursor(RocksRaylibRenderer* r) {
     SetMouseCursor(hasPointerElement ? MOUSE_CURSOR_POINTING_HAND : MOUSE_CURSOR_DEFAULT);
 }
 
-void rocks_raylib_set_window_size(Rocks* rocks, int width, int height) {
-    RocksRaylibRenderer* r = rocks->renderer_data;
+void Rocks_SetWindowSizeRaylib(Rocks* rocks, int width, int height) {
+    Rocks_RaylibRenderer* r = rocks->renderer_data;
     if (!r) return;
 
     SetWindowSize(
@@ -167,7 +167,7 @@ void rocks_raylib_set_window_size(Rocks* rocks, int width, int height) {
     });
 }
 
-void rocks_raylib_toggle_fullscreen(Rocks* rocks) {
+void Rocks_ToggleFullscreenRaylib(Rocks* rocks) {
     if (!rocks) return;
 
     if (!IsWindowFullscreen()) {
@@ -199,13 +199,13 @@ void rocks_raylib_toggle_fullscreen(Rocks* rocks) {
 
 
 // Initialization
-bool rocks_raylib_init(Rocks* rocks, void* config) {
+bool Rocks_InitRaylib(Rocks* rocks, void* config) {
     if (!rocks || !config) return false;
 
-    RocksRaylibRenderer* r = calloc(1, sizeof(RocksRaylibRenderer));
+    Rocks_RaylibRenderer* r = calloc(1, sizeof(Rocks_RaylibRenderer));
     if (!r) return false;
 
-    RocksRaylibConfig* raylib_config = (RocksRaylibConfig*)config;
+    Rocks_RaylibConfig* raylib_config = (Rocks_RaylibConfig*)config;
     
     r->scale_factor = raylib_config->scale_factor > 0 ? raylib_config->scale_factor : 1.0f;
     r->rocks = rocks;
@@ -222,14 +222,14 @@ bool rocks_raylib_init(Rocks* rocks, void* config) {
     SetTargetFPS(60);
     SetExitKey(0); // Disable automatic exit on ESC
 
-    Clay_SetMeasureTextFunction(rocks_raylib_measure_text, (uintptr_t)r);
+    Clay_SetMeasureTextFunction(Rocks_MeasureTextRaylib, (uintptr_t)r);
     rocks->renderer_data = r;
 
     return true;
 }
 
-void rocks_raylib_cleanup(Rocks* rocks) {
-    RocksRaylibRenderer* r = rocks->renderer_data;
+void Rocks_CleanupRaylib(Rocks* rocks) {
+    Rocks_RaylibRenderer* r = rocks->renderer_data;
     if (!r) return;
 
     for (int i = 0; i < 32; i++) {
@@ -242,8 +242,8 @@ void rocks_raylib_cleanup(Rocks* rocks) {
     free(r);
 }
 
-uint16_t rocks_raylib_load_font(Rocks* rocks, const char* path, int size, uint16_t expected_id) {
-    RocksRaylibRenderer* r = rocks->renderer_data;
+uint16_t Rocks_LoadFontRaylib(Rocks* rocks, const char* path, int size, uint16_t expected_id) {
+    Rocks_RaylibRenderer* r = rocks->renderer_data;
     if (!r || expected_id >= 32) return UINT16_MAX;
 
     if (r->fonts[expected_id].font.baseSize) {
@@ -257,8 +257,8 @@ uint16_t rocks_raylib_load_font(Rocks* rocks, const char* path, int size, uint16
     return expected_id;
 }
 
-void rocks_raylib_unload_font(Rocks* rocks, uint16_t font_id) {
-    RocksRaylibRenderer* r = rocks->renderer_data;
+void Rocks_UnloadFontRaylib(Rocks* rocks, uint16_t font_id) {
+    Rocks_RaylibRenderer* r = rocks->renderer_data;
     if (!r || font_id >= 32) return;
 
     if (r->fonts[font_id].font.baseSize) {
@@ -267,7 +267,7 @@ void rocks_raylib_unload_font(Rocks* rocks, uint16_t font_id) {
     }
 }
 
-void* rocks_raylib_load_image(Rocks* rocks, const char* path) {
+void* Rocks_LoadImageRaylib(Rocks* rocks, const char* path) {
     if (!path) return NULL;
     
     Texture2D* texture = malloc(sizeof(Texture2D));
@@ -282,24 +282,25 @@ void* rocks_raylib_load_image(Rocks* rocks, const char* path) {
     return texture;
 }
 
-void rocks_raylib_unload_image(Rocks* rocks, void* image_data) {
+void Rocks_UnloadImageRaylib(Rocks* rocks, void* image_data) {
     if (!image_data) return;
     Texture2D* texture = (Texture2D*)image_data;
     UnloadTexture(*texture);
     free(texture);
 }
 
-Clay_Dimensions rocks_raylib_get_image_dimensions(Rocks* rocks, void* image_data) {
+Clay_Dimensions Rocks_GetImageDimensionsRaylib(Rocks* rocks, void* image_data) {
     if (!image_data) return (Clay_Dimensions){0, 0};
     Texture2D* texture = (Texture2D*)image_data;
     return (Clay_Dimensions){(float)texture->width, (float)texture->height};
 }
 
-float rocks_raylib_get_time(void) {
+float Rocks_GetTimeRaylib(void) {
     return GetTime();
 }
-void rocks_raylib_process_events(Rocks* rocks) {
-    RocksRaylibRenderer* r = rocks->renderer_data;
+
+void Rocks_ProcessEventsRaylib(Rocks* rocks) {
+    Rocks_RaylibRenderer* r = rocks->renderer_data;
     if (!r) return;
 
     // Update window state
@@ -326,6 +327,15 @@ void rocks_raylib_process_events(Rocks* rocks) {
     rocks->input.mousePositionX = mousePos.x;
     rocks->input.mousePositionY = mousePos.y;
     rocks->input.isMouseDown = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
+
+
+    // Text input
+    rocks->input.charPressed = GetCharPressed();
+    rocks->input.enterPressed = IsKeyPressed(KEY_ENTER);
+    rocks->input.backspacePressed = IsKeyPressed(KEY_BACKSPACE);
+    rocks->input.leftPressed = IsKeyPressed(KEY_LEFT);
+    rocks->input.rightPressed = IsKeyPressed(KEY_RIGHT);
+
 
     // Check if mouse moved
     static Vector2 lastMousePos = {0};
@@ -514,11 +524,11 @@ void rocks_raylib_process_events(Rocks* rocks) {
     }
 
     // Update scroll physics
-    update_scroll_state(r);
+    UpdateScrollState(r);
 }
 
-void rocks_raylib_render(Rocks* rocks, Clay_RenderCommandArray commands) {
-    RocksRaylibRenderer* r = rocks->renderer_data;
+void Rocks_RenderRaylib(Rocks* rocks, Clay_RenderCommandArray commands) {
+    Rocks_RaylibRenderer* r = rocks->renderer_data;
     if (!r) return;
 
     BeginDrawing();
@@ -561,7 +571,7 @@ void rocks_raylib_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                 }
 
                 // Handle cursor pointer tracking
-                if (config->cursorPointer && r->pointer_elements_count < MAX_POINTER_ELEMENTS) {
+                if (config->cursorPointer && r->pointer_elements_count < ROCKS_MAX_POINTER_ELEMENTS) {
                     r->pointer_elements[r->pointer_elements_count++] = cmd->id;
                 }
 
@@ -663,10 +673,10 @@ void rocks_raylib_render(Rocks* rocks, Clay_RenderCommandArray commands) {
                         Clay_ElementId elementId = { .id = cmd->id };
                         
                         if (config->vertical) {
-                            render_scrollbar(r, cmd->boundingBox, true, config, elementId);
+                            RenderScrollbar(r, cmd->boundingBox, true, config, elementId);
                         }
                         if (config->horizontal) {
-                            render_scrollbar(r, cmd->boundingBox, false, config, elementId);
+                            RenderScrollbar(r, cmd->boundingBox, false, config, elementId);
                         }
                     }
                 }
@@ -721,7 +731,7 @@ void rocks_raylib_render(Rocks* rocks, Clay_RenderCommandArray commands) {
     }
 
     // Update cursor state
-    update_cursor(r);
+    UpdateCursor(r);
 
     EndDrawing();
 }

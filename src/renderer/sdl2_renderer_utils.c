@@ -245,7 +245,7 @@ void RenderScrollbar(
     if (!scrollData.found) return;
 
     // Get theme colors from rocks global instance
-    RocksTheme theme = rocks_get_theme(rocks);
+    Rocks_Theme theme = Rocks_GetTheme(rocks);
 
     float viewportSize = isVertical ? boundingBox.height : boundingBox.width;
     float contentSize = isVertical ? scrollData.contentDimensions.height : scrollData.contentDimensions.width;

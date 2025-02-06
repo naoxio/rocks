@@ -20,12 +20,12 @@ enum {
 static uint16_t g_font_ids[FONT_COUNT];
 
 static bool load_fonts(void) {
-    g_font_ids[FONT_TITLE] = rocks_load_font("assets/Roboto-Bold.ttf", 32, FONT_TITLE);
+    g_font_ids[FONT_TITLE] = Rocks_LoadFont("assets/Roboto-Bold.ttf", 32, FONT_TITLE);
     if (g_font_ids[FONT_TITLE] == UINT16_MAX) return false;
     
-    g_font_ids[FONT_BODY] = rocks_load_font("assets/Roboto-Regular.ttf", 16, FONT_BODY);
+    g_font_ids[FONT_BODY] = Rocks_LoadFont("assets/Roboto-Regular.ttf", 16, FONT_BODY);
     if (g_font_ids[FONT_BODY] == UINT16_MAX) {
-        rocks_unload_font(g_font_ids[FONT_TITLE]);
+        Rocks_UnloadFont(g_font_ids[FONT_TITLE]);
         return false;
     }
     
@@ -33,7 +33,7 @@ static bool load_fonts(void) {
 }
 
 static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
-    RocksTheme theme = rocks_get_theme(rocks);
+    Rocks_Theme theme = Rocks_GetTheme(rocks);
 
     CLAY(CLAY_ID("MainContainer"), 
         CLAY_LAYOUT({
@@ -73,7 +73,7 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
 }
 
 int main(void) {
-    RocksConfig config = {
+    Rocks_Config config = {
         .window_width = 800,
         .window_height = 600,
         .window_title = "Hello Rocks!",
@@ -90,7 +90,7 @@ int main(void) {
     };
 
 #ifdef ROCKS_USE_SDL2
-    RocksSDL2Config sdl_config = {
+    Rocks_ConfigSDL2 sdl_config = {
         .window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE,
         .renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC,
         .scale_factor = 1.0f,
@@ -101,7 +101,7 @@ int main(void) {
 #endif
 
 #ifdef ROCKS_USE_RAYLIB
-    RocksRaylibConfig raylib_config = {
+    Rocks_RaylibConfig raylib_config = {
         .screen_width = 800,
         .screen_height = 600
     };
@@ -113,19 +113,19 @@ int main(void) {
     return 1;
 #endif
 
-    Rocks* rocks = rocks_init(config);
+    Rocks* rocks = Rocks_Init(config);
     if (!rocks) return 1;
 
     if (!load_fonts()) {
-        rocks_cleanup(rocks);
+        Rocks_Cleanup(rocks);
         return 1;
     }
 
-    rocks_run(rocks, update);
+    Rocks_Run(rocks, update);
     
-    rocks_unload_font(g_font_ids[FONT_TITLE]);
-    rocks_unload_font(g_font_ids[FONT_BODY]);
-    rocks_cleanup(rocks);
+    Rocks_UnloadFont(g_font_ids[FONT_TITLE]);
+    Rocks_UnloadFont(g_font_ids[FONT_BODY]);
+    Rocks_Cleanup(rocks);
     
     return 0;
 }
