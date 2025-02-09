@@ -23,6 +23,8 @@ static void BeginFrame(Rocks* rocks) {
     Clay_BeginLayout();
 }
 
+
+
 Rocks* Rocks_Init(Rocks_Config config) {
     if (GRocks) return GRocks;
 
@@ -38,6 +40,7 @@ Rocks* Rocks_Init(Rocks_Config config) {
     }
 
     void* arena_memory = malloc(rocks->config.arena_size);
+
     if (!arena_memory) {
         free(rocks);
         return NULL;
@@ -147,6 +150,7 @@ void Rocks_Run(Rocks* rocks, Rocks_UpdateFunction update) {
         rocks->input.deltaTime = current_time - last_time;
         last_time = current_time;
 
+        printf("Before process events\n");
         #ifdef ROCKS_USE_SDL2
             Rocks_ProcessEventsSDL2(rocks);
         #endif
@@ -155,10 +159,16 @@ void Rocks_Run(Rocks* rocks, Rocks_UpdateFunction update) {
             Rocks_ProcessEventsRaylib(rocks);
         #endif
 
+        printf("after process events \n");
         BeginFrame(rocks);
 
+        printf("before update \n");
         Clay_RenderCommandArray commands = update(rocks, rocks->input.deltaTime);
 
+        printf("after update \n");
+
+
+        printf("before render \n");
         #ifdef ROCKS_USE_SDL2
             Rocks_RenderSDL2(rocks, commands);
         #endif
@@ -166,6 +176,8 @@ void Rocks_Run(Rocks* rocks, Rocks_UpdateFunction update) {
         #ifdef ROCKS_USE_RAYLIB
             Rocks_RenderRaylib(rocks, commands);
         #endif
+
+        printf("after render \n");
     }
 }
 

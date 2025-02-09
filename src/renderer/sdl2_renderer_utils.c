@@ -47,7 +47,7 @@ void DrawQuarterCircle(
     const int NUM_SEGMENTS = 32;
     float angleStep = (float)(M_PI / 2.0f) / NUM_SEGMENTS;
     
-    SDL_Vertex* verts = (SDL_Vertex*)alloca((NUM_SEGMENTS + 2) * sizeof(SDL_Vertex));
+    SDL_Vertex* verts = (SDL_Vertex*)malloc((NUM_SEGMENTS + 2) * sizeof(SDL_Vertex));
     int numVerts = 0;
 
     verts[numVerts].position.x = centerX;

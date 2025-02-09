@@ -1,6 +1,6 @@
 #define ROCKS_CLAY_IMPLEMENTATION
-#include "rocks.h"
 #include "rocks_types.h"
+#include "rocks.h"
 #include "components/text_input.h"
 #include <stdio.h>
 

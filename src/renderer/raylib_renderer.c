@@ -68,9 +68,12 @@ static void RenderScrollbar(
     Clay_ScrollElementConfig* config,
     Clay_ElementId elementId
 ) {
-    Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
-    if (!scrollData.found) return;
 
+    Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
+    if (!scrollData.found) {
+        return;
+    }
+    
     Rocks_Theme theme = Rocks_GetTheme(r->rocks);
     
     float viewportSize = isVertical ? scrollData.scrollContainerDimensions.height : scrollData.scrollContainerDimensions.width;
@@ -121,6 +124,7 @@ static void RenderScrollbar(
         ColorAlpha((Color){theme.scrollbar_thumb_hover.r, theme.scrollbar_thumb_hover.g, theme.scrollbar_thumb_hover.b, theme.scrollbar_thumb_hover.a}, r->scrollbar_opacity) :
         ColorAlpha((Color){theme.scrollbar_thumb.r, theme.scrollbar_thumb.g, theme.scrollbar_thumb.b, theme.scrollbar_thumb.a}, r->scrollbar_opacity);
     DrawRectangleRec(thumb, thumbColor);
+
 }
 
 static void UpdateCursor(Rocks_RaylibRenderer* r) {
@@ -606,24 +610,59 @@ void Rocks_RenderRaylib(Rocks* rocks, Clay_RenderCommandArray commands) {
             }
             case CLAY_RENDER_COMMAND_TYPE_TEXT: {
                 Clay_TextElementConfig* config = cmd->config.textElementConfig;
-                if (!config || config->fontId >= 32 || !r->fonts[config->fontId].font.baseSize) continue;
-
-                if (!cmd->text.chars || cmd->text.length == 0) continue;
-
+                printf("Text command received: fontId=%d\n", config ? config->fontId : -1);
+                
+                if (!config) {
+                    printf("Error: Null text config\n");
+                    continue;
+                }
+                if (config->fontId >= 32) {
+                    printf("Error: Font ID %d out of bounds\n", config->fontId);
+                    continue;
+                }
+                if (!r->fonts[config->fontId].font.baseSize) {
+                    printf("Error: Font %d not loaded (base size is 0)\n", config->fontId);
+                    continue;
+                }
+            
+                printf("Text content check: chars=%p length=%d\n", 
+                       (void*)cmd->text.chars, cmd->text.length);
+                
+                if (!cmd->text.chars) {
+                    printf("Error: Null text chars pointer\n");
+                    continue;
+                }
+                if (cmd->text.length == 0) {
+                    printf("Error: Zero text length\n");
+                    continue;
+                }
+            
+                printf("About to render text: '");
+                for(int i = 0; i < cmd->text.length; i++) {
+                    printf("%c", cmd->text.chars[i]);
+                }
+                printf("'\n");
+            
                 char* buffer = malloc(cmd->text.length + 1);
-                if (!buffer) continue;
-
+                if (!buffer) {
+                    printf("Error: Failed to allocate text buffer\n");
+                    continue;
+                }
+            
                 memcpy(buffer, cmd->text.chars, cmd->text.length);
                 buffer[cmd->text.length] = '\0';
-
+            
+                Font font = r->fonts[config->fontId].font;
+                printf("Font info: baseSize=%d, glyphCount=%d\n", 
+                       font.baseSize, font.glyphCount);
+            
                 Color textColor = {
                     config->textColor.r,
                     config->textColor.g,
                     config->textColor.b,
                     config->textColor.a
                 };
-
-                Font font = r->fonts[config->fontId].font;
+            
                 DrawTextEx(
                     font,
                     buffer,
@@ -635,14 +674,16 @@ void Rocks_RenderRaylib(Rocks* rocks, Clay_RenderCommandArray commands) {
                     0,
                     textColor
                 );
-
+            
                 free(buffer);
                 break;
             }
+            
+            
             case CLAY_RENDER_COMMAND_TYPE_BORDER: {
                 Clay_BorderElementConfig* config = cmd->config.borderElementConfig;
                 if (!config) continue;
-
+            
                 Rectangle rect = {
                     cmd->boundingBox.x * r->scale_factor,
                     cmd->boundingBox.y * r->scale_factor,
@@ -656,11 +697,12 @@ void Rocks_RenderRaylib(Rocks* rocks, Clay_RenderCommandArray commands) {
                     config->top.color.b,
                     config->top.color.a
                 };
-
+            
                 float roundness = config->cornerRadius.topLeft / (rect.height / 2.0f);
                 DrawRectangleRoundedLines(rect, roundness, 8, color);
                 break;
-                }
+            }
+            
             case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
                 if (cmd->config.scrollElementConfig) {
                     // Track scroll container

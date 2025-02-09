@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Function to clean and build the project with the selected renderer
 build_project() {

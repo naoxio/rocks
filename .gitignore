@@ -1,3 +1,27 @@
-build
 .xmake
 .cache
+.sdl2
+
+# devenv-specific
+.devenv*
+.direnv
+.pre-commit-config.yaml
+
+# Build outputs
+build/
+*.o
+*.a
+
+# Nix-specific
+result
+result-*
+
+# Editor-specific (optional)
+.vscode/
+.idea/
+*.swp
+*~
+
+# Project-specific build artifacts
+/bin/
+/lib/
