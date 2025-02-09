@@ -77,6 +77,6 @@ void Rocks_RenderRaylib(Rocks* rocks, Clay_RenderCommandArray commands);
 
 float Rocks_GetTimeRaylib(void);
 
-Clay_Dimensions Rocks_MeasureTextRaylib(Clay_StringSlice text, Clay_TextElementConfig* config, uintptr_t userData);
+Clay_Dimensions Rocks_MeasureTextRaylib(Clay_StringSlice text, Clay_TextElementConfig* config, void* userData);
 
 #endif // Rocks_Renderer_H

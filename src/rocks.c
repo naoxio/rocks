@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "rocks_custom.h"
 
 #define DEFAULT_ARENA_SIZE (1024 * 1024 * 8) // 8MB
 
@@ -21,6 +22,7 @@ static void BeginFrame(Rocks* rocks) {
         rocks->input.isMouseDown || rocks->input.isTouchDown
     );
     Clay_BeginLayout();
+    g_rocks_frame_arena.offset = 0;
 }
 
 
@@ -40,6 +42,15 @@ Rocks* Rocks_Init(Rocks_Config config) {
     }
 
     void* arena_memory = malloc(rocks->config.arena_size);
+
+
+    size_t customArenaSize = 1024 * 1024; // 1MB for custom data
+    g_rocks_frame_arena.memory = malloc(customArenaSize);
+    if (!g_rocks_frame_arena.memory) {
+        free(g_rocks_frame_arena.memory);
+        g_rocks_frame_arena = (RocksArena){0};
+    }
+
 
     if (!arena_memory) {
         free(rocks);
@@ -125,6 +136,10 @@ void Rocks_Cleanup(Rocks* rocks) {
     Rocks_CleanupRaylib(rocks);
 #endif
 
+
+    free(g_rocks_frame_arena.memory);
+    g_rocks_frame_arena = (RocksArena){0};
+
     free(rocks->clay_arena.memory);
     free(rocks);
     GRocks = NULL;
@@ -150,7 +165,6 @@ void Rocks_Run(Rocks* rocks, Rocks_UpdateFunction update) {
         rocks->input.deltaTime = current_time - last_time;
         last_time = current_time;
 
-        printf("Before process events\n");
         #ifdef ROCKS_USE_SDL2
             Rocks_ProcessEventsSDL2(rocks);
         #endif
@@ -159,16 +173,10 @@ void Rocks_Run(Rocks* rocks, Rocks_UpdateFunction update) {
             Rocks_ProcessEventsRaylib(rocks);
         #endif
 
-        printf("after process events \n");
         BeginFrame(rocks);
 
-        printf("before update \n");
         Clay_RenderCommandArray commands = update(rocks, rocks->input.deltaTime);
 
-        printf("after update \n");
-
-
-        printf("before render \n");
         #ifdef ROCKS_USE_SDL2
             Rocks_RenderSDL2(rocks, commands);
         #endif
@@ -176,8 +184,6 @@ void Rocks_Run(Rocks* rocks, Rocks_UpdateFunction update) {
         #ifdef ROCKS_USE_RAYLIB
             Rocks_RenderRaylib(rocks, commands);
         #endif
-
-        printf("after render \n");
     }
 }
 

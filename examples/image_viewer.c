@@ -48,30 +48,35 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
     Rocks_Theme theme = Rocks_GetTheme(rocks);
     Clay_Dimensions image_dims = Rocks_GetImageDimensions(rocks, g_alice_image);
     
-    CLAY(CLAY_ID("MainContainer"), 
-        CLAY_LAYOUT({
-            .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
+    Clay_BeginLayout();
+    
+    CLAY({ 
+        .id = CLAY_ID("MainContainer"),
+        .layout = {
+            .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
             .childAlignment = { CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER },
             .layoutDirection = CLAY_TOP_TO_BOTTOM,
             .childGap = 20
-        }),
-        CLAY_RECTANGLE({ .color = theme.background })
-    ) {
+        },
+        .backgroundColor = theme.background
+    }) {
         CLAY_TEXT(CLAY_STRING("Alice in Wonderland"), CLAY_TEXT_CONFIG({
             .textColor = theme.text,
             .fontSize = 32,
             .fontId = g_font_ids[FONT_TITLE]
         }));
 
-        CLAY(CLAY_ID("ImageContainer"),
-            CLAY_LAYOUT({
+        CLAY({
+            .id = CLAY_ID("ImageContainer"),
+            .layout = {
                 .sizing = { CLAY_SIZING_FIXED(400), CLAY_SIZING_FIXED(300) },
                 .childAlignment = { CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER }
-            }),
-            CLAY_IMAGE({
+            },
+            .image = {
                 .imageData = g_alice_image,
                 .sourceDimensions = image_dims
-            })) {}
+            }
+        }) {}
 
         CLAY_TEXT(CLAY_STRING("Down the Rabbit Hole"), CLAY_TEXT_CONFIG({
             .textColor = theme.text_secondary,
@@ -80,8 +85,7 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
         }));
     }
 
-    Clay_RenderCommandArray commands = Clay_EndLayout();
-    return commands;
+    return Clay_EndLayout();
 }
 
 int main(void) {

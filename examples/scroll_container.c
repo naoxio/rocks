@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "rocks_types.h"
+#include "rocks_custom.h"
 
 #ifdef ROCKS_USE_SDL2
 #include <SDL2/SDL.h>
@@ -56,64 +57,64 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
     Rocks_Theme theme = Rocks_GetTheme(rocks);
     static char item_texts[50][32];
 
-    CLAY(CLAY_ID("MainContainer"),
-        CLAY_LAYOUT({
-            .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
+    Clay_BeginLayout();
+    
+    CLAY({ 
+        .id = CLAY_ID("MainContainer"),
+        .layout = {
+            .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
             .childAlignment = { CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER },
             .layoutDirection = CLAY_TOP_TO_BOTTOM,
             .childGap = 20
-        }),
-        CLAY_RECTANGLE({ .color = theme.background })
-    ) {
+        },
+        .backgroundColor = theme.background
+    }) {
         CLAY_TEXT(CLAY_STRING("Scrollable List"), CLAY_TEXT_CONFIG({
             .textColor = theme.text,
             .fontSize = 32,
             .fontId = g_font_ids[FONT_TITLE]
         }));
 
-        CLAY(CLAY_ID("ListContainer"),
-            CLAY_LAYOUT({
+        CLAY({
+            .id = CLAY_ID("ListContainer"),
+            .layout = {
                 .sizing = { CLAY_SIZING_FIXED(420), CLAY_SIZING_FIXED(400) },
-                .padding = { 10, 10, 10, 10 }
-            }),
-            CLAY_RECTANGLE({ 
-                .color = theme.secondary,
-                .cornerRadius = CLAY_CORNER_RADIUS(8)
-            })
-        ) {
-            CLAY(CLAY_ID("ScrollArea"),
-                CLAY_LAYOUT({
-                    .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
+                .padding = CLAY_PADDING_ALL(10)
+            },
+            .backgroundColor = theme.secondary,
+            .cornerRadius = CLAY_CORNER_RADIUS(8)
+        }) {
+            CLAY({
+                .id = CLAY_ID("ScrollArea"),
+                .layout = {
+                    .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
                     .childAlignment = { CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_TOP },
                     .childGap = 8,
                     .layoutDirection = CLAY_TOP_TO_BOTTOM 
-                }),
-                CLAY_SCROLL({ 
-                    .vertical = true,
-                    .horizontal = false
-                })
-            ) {
-
+                },
+                .scroll = { .vertical = true, .horizontal = false }
+            }) {
                 for (int i = 0; i < 50; i++) {
                     snprintf(item_texts[i], sizeof(item_texts[i]), "Item %d", i + 1);
-                    // Convert the string into a Clay_String with the correct length
                     Clay_String item_string = {
                         .chars = item_texts[i],
                         .length = strlen(item_texts[i])
                     };
 
-                    CLAY(CLAY_IDI("ListItem", i),
-                        CLAY_LAYOUT({
+                    CLAY({
+                        .id = CLAY_IDI("ListItem", i),
+                        .layout = {
                             .sizing = { CLAY_SIZING_FIXED(380), CLAY_SIZING_FIXED(40) },
                             .childAlignment = { CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER },
                             .padding = { 16, 0, 0, 0 }
-                        }),
-                        CLAY_RECTANGLE({ 
-                            .color = theme.background,
-                            .cornerRadius = CLAY_CORNER_RADIUS(6),
+                        },
+                        .backgroundColor = theme.background,
+                        .cornerRadius = CLAY_CORNER_RADIUS(6),
+
+                        .custom = { .customData = Rocks_AllocateCustomData((RocksCustomData){
                             .cursorPointer = true
-                        })
-                    ) {
+                        })}
+                    }) {
                         CLAY_TEXT(item_string, CLAY_TEXT_CONFIG({
                             .textColor = theme.text,
                             .fontSize = 16,

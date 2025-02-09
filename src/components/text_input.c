@@ -148,70 +148,72 @@ void Rocks_UnfocusTextInput(Rocks_TextInput* input) {
     input->is_focused = false;
     input->cursor_visible = false;
 }
+
 void Rocks_RenderTextInput(Rocks_TextInput* input, uint32_t id) {
-   if (!input) return;
-   Rocks_Theme theme = Rocks_GetTheme(GRocks);
+    if (!input) return;
+    Rocks_Theme theme = Rocks_GetTheme(GRocks);
 
-   CLAY(CLAY_IDI("TextInput", id), 
-       CLAY_LAYOUT({ 
-           .sizing = { CLAY_SIZING_FIXED(300), CLAY_SIZING_FIXED(40) },
-           .childAlignment = { .x = CLAY_ALIGN_X_LEFT, .y = CLAY_ALIGN_Y_CENTER },
-           .layoutDirection = CLAY_LEFT_TO_RIGHT,
-           .padding = { ROCKS_PADDING, ROCKS_PADDING, ROCKS_PADDING, ROCKS_PADDING }
-       }),
-       CLAY_RECTANGLE({ 
-           .color = theme.secondary,
-           .cornerRadius = CLAY_CORNER_RADIUS(4) 
-       }),
-       CLAY_BORDER({
-           .left = { .width = 1, .color = input->is_focused ? theme.primary : theme.border },
-           .right = { .width = 1, .color = input->is_focused ? theme.primary : theme.border },
-           .top = { .width = 1, .color = input->is_focused ? theme.primary : theme.border },
-           .bottom = { .width = 1, .color = input->is_focused ? theme.primary : theme.border },
-           .cornerRadius = CLAY_CORNER_RADIUS(4)
-       }),
-       Clay_OnHover(Rocks_HandleTextInputClick, (intptr_t)(void*)input)
-   ) {
-       CLAY(CLAY_ID("TextContainer"),
-           CLAY_LAYOUT({
-                .childAlignment = { .x = CLAY_ALIGN_X_LEFT, .y = CLAY_ALIGN_Y_CENTER },
-           })
-       ) {
-           if (input->text_length > 0) {
-               Clay_String before_cursor = {
-                   .chars = input->text,
-                   .length = input->cursor_position
-               };
-               CLAY_TEXT(before_cursor, CLAY_TEXT_CONFIG({
-                   .textColor = theme.text,
-                   .fontSize = 16,
-                   .wrapMode = CLAY_TEXT_WRAP_NONE
-               }));
-           }
+    CLAY({ 
+        .id = CLAY_IDI("TextInput", id),
+        .layout = {
+            .sizing = { CLAY_SIZING_FIXED(300), CLAY_SIZING_FIXED(40) },
+            .childAlignment = { CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER },
+            .layoutDirection = CLAY_LEFT_TO_RIGHT,
+            .padding = CLAY_PADDING_ALL(ROCKS_PADDING)
+        },
+        .backgroundColor = theme.secondary,
+        .cornerRadius = CLAY_CORNER_RADIUS(4),
+        .border = {
+            .width = { 1, 1, 1, 1 },
+            .color = input->is_focused ? theme.primary : theme.border
+        }
+    }) {
+        Clay_OnHover(Rocks_HandleTextInputClick, (intptr_t)(void*)input);
 
-           if (input->is_focused && input->cursor_visible) {
-               CLAY(CLAY_ID("Cursor"),
-                   CLAY_LAYOUT({
-                       .sizing = { CLAY_SIZING_FIXED(2), CLAY_SIZING_FIXED(20) }
-                   }),
-                   CLAY_RECTANGLE({ .color = theme.text })
-               ) {}
-           }
+        CLAY({
+            .id = CLAY_ID("TextContainer"),
+            .layout = {
+                .childAlignment = { CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER }
+            }
+        }) {
+            // Rest of the text input rendering code remains the same
+            if (input->text_length > 0) {
+                Clay_String before_cursor = {
+                    .chars = input->text,
+                    .length = input->cursor_position
+                };
+                CLAY_TEXT(before_cursor, CLAY_TEXT_CONFIG({
+                    .textColor = theme.text,
+                    .fontSize = 16,
+                    .wrapMode = CLAY_TEXT_WRAP_NONE
+                }));
+            }
 
-           if (input->cursor_position < input->text_length) {
-               Clay_String after_cursor = {
-                   .chars = &input->text[input->cursor_position],
-                   .length = input->text_length - input->cursor_position
-               };
-               CLAY_TEXT(after_cursor, CLAY_TEXT_CONFIG({
-                   .textColor = theme.text,
-                   .fontSize = 16,
-                   .wrapMode = CLAY_TEXT_WRAP_NONE
-               }));
-           }
-       }
-   }
+            if (input->is_focused && input->cursor_visible) {
+                CLAY({
+                    .id = CLAY_ID("Cursor"),
+                    .layout = {
+                        .sizing = { CLAY_SIZING_FIXED(2), CLAY_SIZING_FIXED(20) }
+                    },
+                    .backgroundColor = theme.text
+                }) {}
+            }
+
+            if (input->cursor_position < input->text_length) {
+                Clay_String after_cursor = {
+                    .chars = &input->text[input->cursor_position],
+                    .length = input->text_length - input->cursor_position
+                };
+                CLAY_TEXT(after_cursor, CLAY_TEXT_CONFIG({
+                    .textColor = theme.text,
+                    .fontSize = 16,
+                    .wrapMode = CLAY_TEXT_WRAP_NONE
+                }));
+            }
+        }
+    }
 }
+
 void Rocks_SetTextInputText(Rocks_TextInput* input, const char* text) {
     if (!input || !text) return;
     

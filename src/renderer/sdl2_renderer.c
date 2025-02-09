@@ -852,14 +852,16 @@ void Rocks_RenderSDL2(Rocks* rocks, Clay_RenderCommandArray commands) {
                 Clay_RectangleElementConfig* config = cmd->config.rectangleElementConfig;
                 if (!config) continue;
 
-                // Check for pointer hover
-                if (config->cursorPointer && 
-                    mouseX >= cmd->boundingBox.x && 
-                    mouseX <= cmd->boundingBox.x + cmd->boundingBox.width &&
-                    mouseY >= cmd->boundingBox.y && 
-                    mouseY <= cmd->boundingBox.y + cmd->boundingBox.height) {
-                    hasPointerElement = true;
+                RocksCustomData* customData = (RocksCustomData*)cmd->renderData.custom.customData;
+                if (customData) {
+                    if (customData->cursorPointer &&
+                        mouseX >= cmd->boundingBox.x && 
+                        mouseX <= cmd->boundingBox.x + cmd->boundingBox.width &&
+                        mouseY >= cmd->boundingBox.y && 
+                        mouseY <= cmd->boundingBox.y + cmd->boundingBox.height) {
+                        hasPointerElement = true;
                     }
+                }
 
                 // Render rounded rectangle with shadow if enabled
                 RenderRoundedRectangle(

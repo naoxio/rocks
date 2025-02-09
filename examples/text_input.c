@@ -34,46 +34,49 @@ static bool load_fonts(void) {
 }
 
 static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
-  Rocks_Theme theme = Rocks_GetTheme(rocks);
+    Rocks_Theme theme = Rocks_GetTheme(rocks);
+    
+    Clay_BeginLayout();
+    
+    CLAY({ 
+        .id = CLAY_ID("MainContainer"),
+        .layout = {
+            .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+            .childAlignment = { CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER },
+            .layoutDirection = CLAY_TOP_TO_BOTTOM,
+            .padding = CLAY_PADDING_ALL(20),
+            .childGap = 20
+        },
+        .backgroundColor = theme.background
+    }) {
+        CLAY_TEXT(CLAY_STRING("Text Input Example"), CLAY_TEXT_CONFIG({
+            .textColor = theme.text,
+            .fontSize = 32,
+            .fontId = g_font_ids[FONT_TITLE]
+        }));
 
-  CLAY(CLAY_ID("MainContainer"), 
-      CLAY_LAYOUT({
-          .sizing = { CLAY_SIZING_GROW(), CLAY_SIZING_GROW() },
-          .childAlignment = { CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER },
-          .layoutDirection = CLAY_TOP_TO_BOTTOM,
-          .padding = {20, 20},
-          .childGap = 20
-      }),
-      CLAY_RECTANGLE({ .color = theme.background })
-  ) {
-      CLAY_TEXT(CLAY_STRING("Text Input Example"), CLAY_TEXT_CONFIG({
-          .textColor = theme.text,
-          .fontSize = 32,
-          .fontId = g_font_ids[FONT_TITLE]
-      }));
+        Rocks_UpdateTextInputFromRocksInput(g_text_input, rocks->input, dt);
+        Rocks_RenderTextInput(g_text_input, 0);
 
-      Rocks_UpdateTextInputFromRocksInput(g_text_input, rocks->input, dt);
-      Rocks_RenderTextInput(g_text_input, 0);
+        Clay_String current_text = {
+            .chars = Rocks_GetTextInputText(g_text_input),
+            .length = strlen(Rocks_GetTextInputText(g_text_input))
+        };
 
-      Clay_String current_text = {
-          .chars = Rocks_GetTextInputText(g_text_input),
-          .length = strlen(Rocks_GetTextInputText(g_text_input))
-      };
+        CLAY_TEXT(CLAY_STRING("Current text: "), CLAY_TEXT_CONFIG({
+            .textColor = theme.text_secondary,
+            .fontSize = 16,
+            .fontId = g_font_ids[FONT_BODY]
+        }));
 
-      CLAY_TEXT(CLAY_STRING("Current text: "), CLAY_TEXT_CONFIG({
-          .textColor = theme.text_secondary,
-          .fontSize = 16,
-          .fontId = g_font_ids[FONT_BODY]
-      }));
+        CLAY_TEXT(current_text, CLAY_TEXT_CONFIG({
+            .textColor = theme.text,
+            .fontSize = 16,
+            .fontId = g_font_ids[FONT_BODY]
+        }));
+    }
 
-      CLAY_TEXT(current_text, CLAY_TEXT_CONFIG({
-          .textColor = theme.text,
-          .fontSize = 16,
-          .fontId = g_font_ids[FONT_BODY]
-      }));
-  }
-
-  return Clay_EndLayout();
+    return Clay_EndLayout();
 }
 
 int main(void) {
