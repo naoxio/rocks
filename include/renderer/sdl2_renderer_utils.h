@@ -4,6 +4,8 @@
 #ifdef ROCKS_USE_SDL2
 
 #include <SDL2/SDL.h>
+#include "clay.h"
+#include "rocks_types.h"
 
 void* SDL_AllocateAligned(size_t alignment, size_t size);
 void SDL_FreeAligned(void* ptr);
@@ -35,7 +37,7 @@ void RenderRoundedRectangle(
 void RenderBorder(
     SDL_Renderer* renderer,
     SDL_FRect rect,
-    Clay_Border border,
+    Clay_BorderElementConfig border,  // Changed from Clay_Border
     Clay_CornerRadius cornerRadius,
     bool isTop,
     bool isBottom,

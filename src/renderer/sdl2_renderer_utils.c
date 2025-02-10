@@ -6,6 +6,7 @@
 #include <math.h>
 #include "rocks.h"
 
+
 // Memory utils for SDL renderer
 void* SDL_AllocateAligned(size_t alignment, size_t size) {
     if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
@@ -66,6 +67,7 @@ void DrawQuarterCircle(
     }
 
     SDL_RenderGeometry(renderer, NULL, verts, numVerts, NULL, 0);
+    free(verts);
 }
 
 SDL_FRect ScaleBoundingBox(SDL_Renderer* renderer, float scale_factor, Clay_BoundingBox box) {
@@ -118,7 +120,7 @@ void RenderRoundedRectangle(
 void RenderBorder(
     SDL_Renderer* renderer,
     SDL_FRect rect,
-    Clay_Border border,
+    Clay_BorderElementConfig border,
     Clay_CornerRadius cornerRadius,
     bool isTop,
     bool isBottom,
@@ -126,7 +128,6 @@ void RenderBorder(
     bool isRight,
     float scale_factor
 ) {
-    float scaledWidth = border.width * scale_factor;
     SDL_Color color = {
         .r = border.color.r,
         .g = border.color.g,
@@ -136,7 +137,9 @@ void RenderBorder(
 
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 
-    if (isTop && border.width > 0) {
+    // Top border
+    if (isTop && border.width.top > 0) {
+        float scaledWidth = border.width.top * scale_factor;
         SDL_FRect topRect = {
             rect.x + (cornerRadius.topLeft * scale_factor),
             rect.y,
@@ -168,7 +171,9 @@ void RenderBorder(
         }
     }
 
-    if (isBottom && border.width > 0) {
+    // Bottom border
+    if (isBottom && border.width.bottom > 0) {
+        float scaledWidth = border.width.bottom * scale_factor;
         SDL_FRect bottomRect = {
             rect.x + (cornerRadius.bottomLeft * scale_factor),
             rect.y + rect.h - scaledWidth,
@@ -200,7 +205,9 @@ void RenderBorder(
         }
     }
 
-    if (isLeft && border.width > 0) {
+    // Left border
+    if (isLeft && border.width.left > 0) {
+        float scaledWidth = border.width.left * scale_factor;
         SDL_FRect leftRect = {
             rect.x,
             rect.y + (cornerRadius.topLeft * scale_factor),
@@ -210,7 +217,9 @@ void RenderBorder(
         SDL_RenderFillRectF(renderer, &leftRect);
     }
 
-    if (isRight && border.width > 0) {
+    // Right border
+    if (isRight && border.width.right > 0) {
+        float scaledWidth = border.width.right * scale_factor;
         SDL_FRect rightRect = {
             rect.x + rect.w - scaledWidth,
             rect.y + (cornerRadius.topRight * scale_factor),
@@ -218,6 +227,17 @@ void RenderBorder(
             rect.h - ((cornerRadius.topRight + cornerRadius.bottomRight) * scale_factor)
         };
         SDL_RenderFillRectF(renderer, &rightRect);
+    }
+
+    // Between children border
+    if (border.width.betweenChildren > 0) {
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+        SDL_RenderFillRectF(renderer, &(SDL_FRect){
+            rect.x,
+            rect.y + rect.h - (border.width.betweenChildren * scale_factor),
+            rect.w,
+            border.width.betweenChildren * scale_factor
+        });
     }
 }
 
@@ -230,6 +250,7 @@ void RenderScrollbarRect(
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     SDL_RenderFillRectF(renderer, &rect);
 }
+
 void RenderScrollbar(
     SDL_Renderer* renderer,
     Rocks* rocks,
@@ -271,7 +292,7 @@ void RenderScrollbar(
     float thumbPosition = scrollProgress * maxTrackSize;
     thumbPosition = SDL_clamp(thumbPosition, 0, maxTrackSize);
 
-    // Create track rect
+    // Track rect
     SDL_FRect track = {
         .x = isVertical ? (scaledBox.x + scaledBox.w - scrollbar_size) : scaledBox.x,
         .y = isVertical ? scaledBox.y : (scaledBox.y + scaledBox.h - scrollbar_size),
@@ -279,7 +300,7 @@ void RenderScrollbar(
         .h = isVertical ? scaledBox.h : scrollbar_size
     };
 
-    // Create thumb rect
+    // Thumb rect
     SDL_FRect thumb = {
         .x = isVertical ? track.x : (track.x + thumbPosition),
         .y = isVertical ? (track.y + thumbPosition) : track.y,
@@ -294,10 +315,10 @@ void RenderScrollbar(
         scaledMouseX >= thumb.x && scaledMouseX <= thumb.x + thumb.w &&
         scaledMouseY >= thumb.y && scaledMouseY <= thumb.y + thumb.h;
 
-    // Render track using theme colors
+    // Render track
     RenderScrollbarRect(renderer, track, theme.scrollbar_track);
 
-    // Render thumb using theme colors
+    // Render thumb
     Clay_Color thumbColor = isHovered ? theme.scrollbar_thumb_hover : theme.scrollbar_thumb;
     RenderScrollbarRect(renderer, thumb, thumbColor);
 }
