@@ -145,7 +145,7 @@
 
     # Build examples with explicit linking of all necessary libraries
     echo "Building Raylib examples..."
-    EXAMPLES="hello_world image_viewer scroll_container text_input"
+    EXAMPLES="hello_world image_viewer scroll_container text_input dropdown"
     for example in $EXAMPLES; do
       if [ -f "examples/$example.c" ]; then
         echo "Building $example..."

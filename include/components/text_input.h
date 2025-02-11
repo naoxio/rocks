@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "rocks.h"
-#include "clay.h"
+#include "rocks_clay.h"
 
 #define ROCKS_MAX_TEXT_INPUT_LENGTH 256
 

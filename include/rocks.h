@@ -44,6 +44,10 @@ void Rocks_ToggleFullscreen(Rocks* rocks);
 void Rocks_StartTextInput(void);
 void Rocks_StopTextInput(void);
 
+void Rocks_HandleGlobalDropdownClick(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData);
+void Rocks_HandleGlobalClick(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData);
+
+
 // Utility functions
 float Rocks_GetTime(Rocks* rocks);
 

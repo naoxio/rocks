@@ -23,8 +23,22 @@ static void BeginFrame(Rocks* rocks) {
     );
     Clay_BeginLayout();
     g_rocks_frame_arena.offset = 0;
-}
 
+    // Add a root container that will handle global clicks
+    CLAY({
+        .id = CLAY_ID("Rocks__RootContainer"),
+        .layout = {
+            .sizing = {
+                CLAY_SIZING_FIXED(rocks->config.window_width * rocks->global_scaling_factor),
+                CLAY_SIZING_FIXED(rocks->config.window_height * rocks->global_scaling_factor)
+            }
+        }
+    }) {
+        // Handle global clicks for both dropdown and text input
+        Clay_OnHover(Rocks_HandleGlobalDropdownClick, 0);
+        Clay_OnHover(Rocks_HandleGlobalClick, 0);
+    }
+}
 
 
 Rocks* Rocks_Init(Rocks_Config config) {
