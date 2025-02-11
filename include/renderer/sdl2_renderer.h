@@ -1,8 +1,17 @@
 #ifndef ROCKS_SDL2_RENDERER_H
 #define ROCKS_SDL2_RENDERER_H
 
-#include "rocks_types.h"
+
 #include "sdl2_renderer_utils.h"
+
+#include <SDL_image.h>
+#include <SDL_ttf.h>
+#include <SDL2_gfxPrimitives.h>
+#include <math.h>
+#include <string.h>
+#include "rocks_custom.h"
+#include "rocks_types.h"
+#include "rocks_clay.h"
 
 #ifdef ROCKS_USE_SDL2
 // Constants

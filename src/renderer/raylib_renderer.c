@@ -223,8 +223,7 @@ bool Rocks_InitRaylib(Rocks* rocks, void* config) {
     );
     
     SetTargetFPS(60);
-    SetExitKey(0); // Disable automatic exit on ESC
-Clay_SetMeasureTextFunction(Rocks_MeasureTextRaylib, (void*)(uintptr_t)r);
+    Clay_SetMeasureTextFunction(Rocks_MeasureTextRaylib, (void*)(uintptr_t)r);
     rocks->renderer_data = r;
 
     return true;

@@ -37,6 +37,8 @@ static void Rocks_HandleOptionClick(Clay_ElementId elementId, Clay_PointerData p
     }
 }
 
+
+
 Rocks_Dropdown* Rocks_CreateDropdown(void (*on_change)(int selected_index, const char* selected_value)) {
     Rocks_Dropdown* dropdown = (Rocks_Dropdown*)malloc(sizeof(Rocks_Dropdown));
     if (!dropdown) return NULL;
@@ -84,7 +86,8 @@ void Rocks_RenderDropdown(Rocks_Dropdown* dropdown, uint32_t id) {
         .id = CLAY_ID("Dropdown"),
         .layout = {
             .sizing = { CLAY_SIZING_FIXED(300), CLAY_SIZING_FIXED(ROCKS_DROPDOWN_HEIGHT) },
-            .padding = CLAY_PADDING_ALL(ROCKS_DROPDOWN_PADDING)
+            .padding = CLAY_PADDING_ALL(ROCKS_DROPDOWN_PADDING),
+            .childAlignment = { CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER }
         },
         .backgroundColor = theme.secondary,
         .cornerRadius = CLAY_CORNER_RADIUS(4),
@@ -95,25 +98,36 @@ void Rocks_RenderDropdown(Rocks_Dropdown* dropdown, uint32_t id) {
     }) {
         Clay_OnHover(Rocks_HandleDropdownClick, (intptr_t)(void*)dropdown);
 
-        // Selected value
-        Clay_String selected_text = {
-            .chars = dropdown->options[dropdown->selected_index],
-            .length = strlen(dropdown->options[dropdown->selected_index])
-        };
-        CLAY_TEXT(selected_text, CLAY_TEXT_CONFIG({
-            .textColor = theme.text,
-            .fontSize = 16
-        }));
+        CLAY({
+            .layout = {
+                .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+                .childAlignment = { CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER },
+                .layoutDirection = CLAY_LEFT_TO_RIGHT,
+                .childGap = 8
+            }
+        }) {
+            // Selected value
+            Clay_String selected_text = {
+                .chars = dropdown->options[dropdown->selected_index],
+                .length = strlen(dropdown->options[dropdown->selected_index])
+            };
+            CLAY_TEXT(selected_text, CLAY_TEXT_CONFIG({
+                .textColor = theme.text,
+                .fontSize = 16
+            }));
 
-        // Arrow indicator
-        Clay_String arrow = {
-            .chars = dropdown->is_open ? "▲" : "▼",
-            .length = 3
-        };
-        CLAY_TEXT(arrow, CLAY_TEXT_CONFIG({
-            .textColor = theme.text,
-            .fontSize = 12
-        }));
+            CLAY({ .layout = { .sizing = { CLAY_SIZING_GROW(0) } } }) {}
+
+            // Arrow indicator
+            Clay_String arrow = {
+                .chars = dropdown->is_open ? "▲" : "▼",
+                .length = 3
+            };
+            CLAY_TEXT(arrow, CLAY_TEXT_CONFIG({
+                .textColor = theme.text,
+                .fontSize = 12
+            }));
+        }
     }
 
     // Options list
@@ -121,7 +135,8 @@ void Rocks_RenderDropdown(Rocks_Dropdown* dropdown, uint32_t id) {
         CLAY({
             .id = CLAY_ID("DropdownOptions"),
             .layout = {
-                .sizing = { CLAY_SIZING_FIXED(300), CLAY_SIZING_FIXED(ROCKS_DROPDOWN_OPTION_HEIGHT * dropdown->num_options) }
+                .sizing = { CLAY_SIZING_FIXED(300), CLAY_SIZING_GROW(0) },
+                .layoutDirection = CLAY_TOP_TO_BOTTOM
             },
             .backgroundColor = theme.secondary,
             .cornerRadius = CLAY_CORNER_RADIUS(4),
@@ -137,10 +152,11 @@ void Rocks_RenderDropdown(Rocks_Dropdown* dropdown, uint32_t id) {
         }) {
             for (int i = 0; i < dropdown->num_options; i++) {
                 CLAY({
-                    .id = CLAY_ID("DropdownOption"),
+                    .id = CLAY_IDI("DropdownOption", i),
                     .layout = {
                         .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIXED(ROCKS_DROPDOWN_OPTION_HEIGHT) },
-                        .padding = CLAY_PADDING_ALL(ROCKS_DROPDOWN_PADDING)
+                        .padding = CLAY_PADDING_ALL(ROCKS_DROPDOWN_PADDING),
+                        .childAlignment = { CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER }
                     },
                     .backgroundColor = i == dropdown->selected_index ? theme.primary : theme.secondary
                 }) {

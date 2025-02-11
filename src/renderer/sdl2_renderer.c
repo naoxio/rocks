@@ -1,13 +1,5 @@
 #include "renderer/sdl2_renderer.h"
 #include "renderer/sdl2_renderer_utils.h"
-#include "clay.h"
-#include <SDL_image.h>
-#include <SDL_ttf.h>
-#include <SDL2_gfxPrimitives.h>
-#include <math.h>
-#include <string.h>
-
-// Function implementations...
 
 void* Rocks_LoadImageSDL2(Rocks* rocks, const char* path) {
     Rocks_SDL2Renderer* r = rocks->renderer_data;
@@ -166,7 +158,7 @@ static float GetScrollSensitivity(Clay_ScrollContainerData* scrollData) {
     return base_sensitivity * content_size_factor;
 }
 
-static void clamp_scroll_position(Clay_ScrollContainerData* scrollData) {
+static void ClamyScrollPosition(Clay_ScrollContainerData* scrollData) {
     float scrollableWidth = scrollData->contentDimensions.width - scrollData->scrollContainerDimensions.width;
     float scrollableHeight = scrollData->contentDimensions.height - scrollData->scrollContainerDimensions.height;
 
@@ -177,7 +169,7 @@ static void clamp_scroll_position(Clay_ScrollContainerData* scrollData) {
 static Uint32 last_scroll_time = 0;
 static const Uint32 SCROLL_DEBOUNCE_TIME = 50; // 50ms debounce time
 
-static bool should_process_scroll_event() {
+static bool ShouldProcessScrollEvent() {
     Uint32 current_time = SDL_GetTicks();
     if (current_time - last_scroll_time < SCROLL_DEBOUNCE_TIME) {
         return false;
@@ -270,9 +262,7 @@ static void handle_mouse_scrollbar_interaction(
     r->scroll_drag_start_x = event->x;
     r->initial_scroll_position = *scrollData->scrollPosition;
 }
-
-
-static Clay_Dimensions rocks_sdl2_measure_text(Clay_StringSlice text, Clay_TextElementConfig* config, uintptr_t userData) {
+static Clay_Dimensions Rocks_MeasureTextSDL2(Clay_StringSlice text, Clay_TextElementConfig* config, void* userData) {
     Rocks_SDL2Renderer* r = (Rocks_SDL2Renderer*)userData;
     
     if (config->fontId >= 32 || !r->fonts[config->fontId].font) {
@@ -305,6 +295,7 @@ static Clay_Dimensions rocks_sdl2_measure_text(Clay_StringSlice text, Clay_TextE
         .height = (float)height
     };
 }
+
 
 bool Rocks_InitSDL2(Rocks* rocks, void* config) {
     printf("Initializing SDL2 renderer...\n");
@@ -394,7 +385,7 @@ bool Rocks_InitSDL2(Rocks* rocks, void* config) {
     SDL_SetCursor(r->current_cursor);
 
     printf("Setting up text measurement function...\n");
-    Clay_SetMeasureTextFunction(rocks_sdl2_measure_text, (uintptr_t)r);
+    Clay_SetMeasureTextFunction(Rocks_MeasureTextSDL2, (void*)r); 
     rocks->renderer_data = r;
 
     printf("SDL2 renderer initialized successfully\n");
@@ -522,7 +513,7 @@ void Rocks_HandleEventSDL2(Rocks* rocks, void* event) {
             }
             break;
         case SDL_MOUSEWHEEL: {
-            if (!should_process_scroll_event()) {
+            if (!ShouldProcessScrollEvent()) {
                 break;
             }
 
@@ -557,7 +548,7 @@ void Rocks_HandleEventSDL2(Rocks* rocks, void* event) {
             }
 
             Clay_UpdateScrollContainers(true, scrollDelta, delta_time);
-            clamp_scroll_position(r->active_scroll_container);
+            ClamyScrollPosition(r->active_scroll_container);
 
             // Update inertial scroll velocity
             inertial_scroll_state.velocity_x = scrollDelta.x / delta_time;
@@ -803,7 +794,6 @@ void Rocks_ProcessEventsSDL2(Rocks* rocks) {
         Rocks_HandleEventSDL2(rocks, &event);
     }
 }
-
 void Rocks_RenderSDL2(Rocks* rocks, Clay_RenderCommandArray commands) {
     Rocks_SDL2Renderer* r = rocks->renderer_data;
     if (!r || !r->renderer) {
@@ -836,8 +826,6 @@ void Rocks_RenderSDL2(Rocks* rocks, Clay_RenderCommandArray commands) {
     mouseX /= r->scale_factor;
     mouseY /= r->scale_factor;
 
-    // Process render commands
-
     for (uint32_t i = 0; i < commands.length; i++) {
         Clay_RenderCommand* cmd = Clay_RenderCommandArray_Get(&commands, i);
         if (!cmd) {
@@ -849,11 +837,13 @@ void Rocks_RenderSDL2(Rocks* rocks, Clay_RenderCommandArray commands) {
 
         switch (cmd->commandType) {
             case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
-                Clay_RectangleElementConfig* config = cmd->config.rectangleElementConfig;
-                if (!config) continue;
-
-                RocksCustomData* customData = (RocksCustomData*)cmd->renderData.custom.customData;
-                if (customData) {
+                Clay_Color backgroundColor = cmd->renderData.rectangle.backgroundColor;
+                Clay_CornerRadius cornerRadius = cmd->renderData.rectangle.cornerRadius;
+                
+                // Check for pointer cursor and custom properties
+                RocksCustomData* customData = NULL;
+                if (cmd->userData) {
+                    customData = (RocksCustomData*)cmd->userData;
                     if (customData->cursorPointer &&
                         mouseX >= cmd->boundingBox.x && 
                         mouseX <= cmd->boundingBox.x + cmd->boundingBox.width &&
@@ -863,43 +853,37 @@ void Rocks_RenderSDL2(Rocks* rocks, Clay_RenderCommandArray commands) {
                     }
                 }
 
-                // Render rounded rectangle with shadow if enabled
+                // Render rounded rectangle with proper shadow support
                 RenderRoundedRectangle(
                     r->renderer, 
                     scaledBox,
-                    config->cornerRadius,
-                    config->color,
-                    config->shadowEnabled,
-                    config->shadowColor,
-                    config->shadowOffset,
-                    config->shadowBlurRadius,
-                    config->shadowSpread,
+                    cornerRadius,
+                    backgroundColor,
+                    customData ? customData->shadowEnabled : false,
+                    customData ? customData->shadowColor : (Clay_Color){0},
+                    customData ? customData->shadowOffset : (Clay_Vector2){0},
+                    customData ? customData->shadowBlurRadius : 0,
+                    customData ? customData->shadowSpread : 0,
                     r->scale_factor
                 );
                 break;
             }
             case CLAY_RENDER_COMMAND_TYPE_TEXT: {
-                Clay_TextElementConfig* config = cmd->config.textElementConfig;
-                if (!config || config->fontId >= 32 || !r->fonts[config->fontId].font) {
-                    printf("Error: Invalid text config or font (Font ID: %d)\n", 
-                        config ? config->fontId : -1);
+                if (!cmd->renderData.text.stringContents.chars || 
+                    cmd->renderData.text.stringContents.length == 0 || 
+                    cmd->renderData.text.fontId >= 32 || 
+                    !r->fonts[cmd->renderData.text.fontId].font) {
                     continue;
                 }
-
-                if (!cmd->text.chars || cmd->text.length == 0) {
-                    printf("Error: No text to render\n");
-                    continue;
-                }
-
 
                 // Get current clip rect
                 SDL_Rect clip;
                 SDL_RenderGetClipRect(r->renderer, &clip);
 
-                TTF_Font* font = r->fonts[config->fontId].font;
+                TTF_Font* font = r->fonts[cmd->renderData.text.fontId].font;
 
                 // Aligned memory allocation for text
-                size_t bufferSize = cmd->text.length + 1;
+                size_t bufferSize = cmd->renderData.text.stringContents.length + 1;
                 char* text = (char*)SDL_AllocateAligned(8, bufferSize);
                 if (!text) {
                     printf("Failed to allocate text buffer\n");
@@ -907,14 +891,16 @@ void Rocks_RenderSDL2(Rocks* rocks, Clay_RenderCommandArray commands) {
                 }
                 
                 memset(text, 0, bufferSize);
-                memcpy(text, cmd->text.chars, cmd->text.length);
+                memcpy(text, cmd->renderData.text.stringContents.chars, 
+                      cmd->renderData.text.stringContents.length);
 
                 SDL_Color color = {
-                    config->textColor.r,
-                    config->textColor.g,
-                    config->textColor.b,
-                    config->textColor.a
+                    cmd->renderData.text.textColor.r,
+                    cmd->renderData.text.textColor.g,
+                    cmd->renderData.text.textColor.b,
+                    cmd->renderData.text.textColor.a
                 };
+                
                 SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text, color);
                 if (!surface) {
                     printf("Failed to create text surface: %s\n", TTF_GetError());
@@ -938,38 +924,42 @@ void Rocks_RenderSDL2(Rocks* rocks, Clay_RenderCommandArray commands) {
                 break;
             }
             case CLAY_RENDER_COMMAND_TYPE_BORDER: {
-                Clay_BorderElementConfig* config = cmd->config.borderElementConfig;
-                if (!config) continue;
-
-                RenderBorder(r->renderer, scaledBox, config->top, config->cornerRadius, 
-                            true, false, false, false, r->scale_factor);
-                RenderBorder(r->renderer, scaledBox, config->bottom, config->cornerRadius, 
-                            false, true, false, false, r->scale_factor);
-                RenderBorder(r->renderer, scaledBox, config->left, config->cornerRadius, 
-                            false, false, true, false, r->scale_factor);
-                RenderBorder(r->renderer, scaledBox, config->right, config->cornerRadius, 
-                            false, false, false, true, r->scale_factor);
+                Clay_BorderRenderData borderData = cmd->renderData.border;
+                
+                RenderBorder(
+                    r->renderer,
+                    scaledBox,
+                    (Clay_BorderElementConfig){
+                        .color = borderData.color,
+                        .width = borderData.width
+                    },
+                    borderData.cornerRadius,
+                    true, // isTop 
+                    true, // isBottom
+                    true, // isLeft 
+                    true, // isRight
+                    r->scale_factor
+                );
                 break;
             }
             
             case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
-                if (cmd->config.scrollElementConfig) {
-                    // Track scroll container
-                    if (r->scroll_container_count < 32) {
-                        r->scroll_containers[r->scroll_container_count].elementId = cmd->id;
-                        r->scroll_containers[r->scroll_container_count].openThisFrame = true;
-                        r->scroll_container_count++;
+                // Track scroll container
+                if (r->scroll_container_count < 32) {
+                    r->scroll_containers[r->scroll_container_count].elementId = cmd->id;
+                    r->scroll_containers[r->scroll_container_count].openThisFrame = true;
+                    r->scroll_container_count++;
 
-                    }
-
-                    Clay_ScrollElementConfig* config = cmd->config.scrollElementConfig;
                     Clay_ElementId elementId = { .id = cmd->id };
+                    Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
                     
-                    if (config->vertical) {
-                        RenderScrollbar(r->renderer, r->rocks, boundingBox, true, mouseX, mouseY, config, elementId, r->scale_factor);
+                    if (scrollData.found && scrollData.config.vertical) {
+                        RenderScrollbar(r->renderer, r->rocks, boundingBox, true, mouseX, mouseY, 
+                                      &scrollData.config, elementId, r->scale_factor);
                     }
-                    if (config->horizontal) {
-                        RenderScrollbar(r->renderer, r->rocks, boundingBox, false, mouseX, mouseY, config, elementId, r->scale_factor);
+                    if (scrollData.found && scrollData.config.horizontal) {
+                        RenderScrollbar(r->renderer, r->rocks, boundingBox, false, mouseX, mouseY, 
+                                      &scrollData.config, elementId, r->scale_factor);
                     }
                 }
 
@@ -986,28 +976,25 @@ void Rocks_RenderSDL2(Rocks* rocks, Clay_RenderCommandArray commands) {
             case CLAY_RENDER_COMMAND_TYPE_SCISSOR_END:
                 SDL_RenderSetClipRect(r->renderer, NULL);
                 break;
+
             case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
-                Clay_ImageElementConfig* config = cmd->config.imageElementConfig;
-                if (!config || !config->imageData) {
-                    printf("Error: Invalid image config or data\n");
+                if (!cmd->renderData.image.imageData) {
                     continue;
                 }
 
-                SDL_Texture* texture = (SDL_Texture*)config->imageData;
+                SDL_Texture* texture = (SDL_Texture*)cmd->renderData.image.imageData;
                 SDL_RenderCopyF(r->renderer, texture, NULL, &scaledBox);
                 break;
             }
+
             case CLAY_RENDER_COMMAND_TYPE_CUSTOM: {
-                Clay_CustomElementConfig* config = cmd->config.customElementConfig;
-                if (config && config->drawCallback) {
-                    config->drawCallback(cmd, config->userData);
-                }
+                // Handle any custom rendering if needed
                 break;
             }
 
             default: {
                 fprintf(stderr, "Error: unhandled render command: %d\n", cmd->commandType);
-                exit(1);
+                break;
             }
         }
     }

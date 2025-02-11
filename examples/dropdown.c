@@ -4,6 +4,14 @@
 #include "components/dropdown.h"
 #include <stdio.h>
 
+#ifdef ROCKS_USE_SDL2
+#include <SDL2/SDL.h>
+#endif
+
+#ifdef ROCKS_USE_RAYLIB
+#include <raylib.h>
+#endif
+
 enum {
     FONT_TITLE = 0,
     FONT_BODY = 1,
@@ -59,7 +67,6 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
             .fontId = g_font_ids[FONT_BODY]
         }));
 
-        // Create Clay_String for selected value
         Clay_String selected_value = {
             .chars = Rocks_GetDropdownSelectedValue(g_dropdown),
             .length = strlen(Rocks_GetDropdownSelectedValue(g_dropdown))
@@ -76,7 +83,6 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
             .fontId = g_font_ids[FONT_BODY]
         }));
 
-        // Create Clay_String for index
         char index_str[32];
         snprintf(index_str, sizeof(index_str), "%d", Rocks_GetDropdownSelectedIndex(g_dropdown));
         Clay_String index_string = {
@@ -98,8 +104,20 @@ int main(void) {
         .window_width = 800,
         .window_height = 600,
         .window_title = "Dropdown Example",
-        .theme = Rocks_ThemeDefault()
+        .theme = Rocks_ThemeDefault(),
+        .scale_factor = 1.0f
     };
+
+#ifdef ROCKS_USE_SDL2
+    Rocks_ConfigSDL2 sdl_config = {
+        .window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE,
+        .renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC,
+        .scale_factor = 1.0f,
+        .vsync = true,
+        .high_dpi = true
+    };
+    config.renderer_config = &sdl_config;
+#endif
 
 #ifdef ROCKS_USE_RAYLIB
     Rocks_RaylibConfig raylib_config = {
@@ -107,6 +125,11 @@ int main(void) {
         .screen_height = 600
     };
     config.renderer_config = &raylib_config;
+#endif
+
+#if !defined(ROCKS_USE_SDL2) && !defined(ROCKS_USE_RAYLIB)
+    printf("Error: No rendering backend defined. Define either ROCKS_USE_SDL2 or ROCKS_USE_RAYLIB.\n");
+    return 1;
 #endif
 
     Rocks* rocks = Rocks_Init(config);
