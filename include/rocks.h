@@ -12,6 +12,9 @@
 #include "renderer/raylib_renderer.h"
 #endif
 
+
+#define DEFAULT_ARENA_SIZE (1024 * 1024 * 8)
+
 typedef Clay_RenderCommandArray (*Rocks_UpdateFunction)(Rocks* rocks, float dt);
 
 // Declare the global Rocks instance

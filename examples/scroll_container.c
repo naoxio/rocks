@@ -110,10 +110,7 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
                         },
                         .backgroundColor = theme.background,
                         .cornerRadius = CLAY_CORNER_RADIUS(6),
-
-                        .custom = { .customData = Rocks_AllocateCustomData((RocksCustomData){
-                            .cursorPointer = true
-                        })}
+                        .userData = Rocks_AllocateCustomData((RocksCustomData) { .cursorPointer = true })
                     }) {
                         CLAY_TEXT(item_string, CLAY_TEXT_CONFIG({
                             .textColor = theme.text,

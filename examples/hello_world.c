@@ -33,6 +33,11 @@ static bool load_fonts(void) {
     return true;
 }
 
+static void button_hover_callback(Clay_ElementId elementId, Clay_PointerData pointerData, intptr_t userData) {
+    if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+        printf("Button clicked!\n");
+    }
+}
 static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
     Rocks_Theme theme = Rocks_GetTheme(rocks);
     
@@ -57,15 +62,15 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
         CLAY({
             .id = CLAY_ID("Button"),
             .layout = {
-                .sizing = { CLAY_SIZING_FIXED(200), CLAY_SIZING_FIXED(50) },
+                .sizing = { CLAY_SIZING_FIXED(120), CLAY_SIZING_FIXED(40) },
                 .childAlignment = { CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER }
             },
-            .backgroundColor = theme.primary,
-            .cornerRadius = CLAY_CORNER_RADIUS(8),
-            .custom = { .customData = Rocks_AllocateCustomData((RocksCustomData){
-                .cursorPointer = true
-            })}
+            .backgroundColor = Clay_Hovered() ? theme.primary_hover : theme.primary,
+            .cornerRadius = CLAY_CORNER_RADIUS(4),
+            .userData = Rocks_AllocateCustomData((RocksCustomData) { .cursorPointer = true })
         }) {
+            Clay_OnHover(button_hover_callback, 0);
+            
             CLAY_TEXT(CLAY_STRING("Click Me!"), CLAY_TEXT_CONFIG({
                 .textColor = theme.text,
                 .fontSize = 16,
@@ -76,7 +81,6 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
     
     return Clay_EndLayout();
 }
-
 int main(void) {
     Rocks_Config config = {
         .window_width = 800,

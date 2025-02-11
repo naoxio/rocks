@@ -7,7 +7,6 @@
 #include <time.h>
 #include "rocks_custom.h"
 
-#define DEFAULT_ARENA_SIZE (1024 * 1024 * 8) // 8MB
 
 // Define the global Rocks instance
 Rocks* GRocks = NULL;

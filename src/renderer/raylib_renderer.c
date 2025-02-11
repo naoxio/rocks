@@ -2,6 +2,7 @@
 #include <math.h>
 #include <string.h>
 #include "raymath.h"
+#include "rocks_custom.h"
 
 #define MAX_SCROLL_CONTAINERS 32
 #define SCROLLBAR_SIZE 10.0f
@@ -125,23 +126,27 @@ static void RenderScrollbar(
         ColorAlpha((Color){theme.scrollbar_thumb.r, theme.scrollbar_thumb.g, theme.scrollbar_thumb.b, theme.scrollbar_thumb.a}, r->scrollbar_opacity);
     DrawRectangleRec(thumb, thumbColor);
 }
-
 static void UpdateCursor(Rocks_RaylibRenderer* r) {
     bool hasPointerElement = false;
     Vector2 mousePos = GetMousePosition();
+    mousePos.x /= r->scale_factor;
+    mousePos.y /= r->scale_factor;
 
-    for (uint32_t i = 0; i < r->pointer_elements_count; i++) {
-        Clay_ElementId elementId = {.id = r->pointer_elements[i]};
-        Clay_ElementData elementData = Clay_GetElementData(elementId);
-        
-        if (elementData.found) {
-            Rectangle bounds = {
-                elementData.boundingBox.x,
-                elementData.boundingBox.y,
-                elementData.boundingBox.width,
-                elementData.boundingBox.height
-            };
+    for (uint32_t i = 0; i < r->rocks->current_frame_commands.length; i++) {
+
+        Clay_RenderCommand* cmd = Clay_RenderCommandArray_Get(&r->rocks->current_frame_commands, i);
+        if (!cmd || !cmd->userData) continue;
             
+        RocksCustomData* customData = (RocksCustomData*)cmd->userData;
+
+        if (customData->cursorPointer) {
+            Rectangle bounds = {
+                cmd->boundingBox.x,
+                cmd->boundingBox.y,
+                cmd->boundingBox.width,
+                cmd->boundingBox.height
+            };
+
             if (CheckCollisionPointRec(mousePos, bounds)) {
                 hasPointerElement = true;
                 break;
@@ -532,6 +537,8 @@ void Rocks_ProcessEventsRaylib(Rocks* rocks) {
 void Rocks_RenderRaylib(Rocks* rocks, Clay_RenderCommandArray commands) {
     Rocks_RaylibRenderer* r = rocks->renderer_data;
     if (!r) return;
+    
+    r->rocks->current_frame_commands = commands;
 
     BeginDrawing();
     ClearBackground(BLACK);
@@ -545,6 +552,7 @@ void Rocks_RenderRaylib(Rocks* rocks, Clay_RenderCommandArray commands) {
 
         switch (cmd->commandType) {
             case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
+
                 Color color = {
                     cmd->renderData.rectangle.backgroundColor.r,
                     cmd->renderData.rectangle.backgroundColor.g,
@@ -568,11 +576,6 @@ void Rocks_RenderRaylib(Rocks* rocks, Clay_RenderCommandArray commands) {
                     );
                 } else {
                     DrawRectangleRec(rect, color);
-                }
-
-                // Track pointer elements
-                if (cmd->userData) {
-                    r->pointer_elements[r->pointer_elements_count++] = cmd->id;
                 }
                 break;
             }
