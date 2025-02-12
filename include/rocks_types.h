@@ -14,6 +14,14 @@ typedef struct Rocks_ScrollContainer {
     bool openThisFrame;
 } Rocks_ScrollContainer;
 
+typedef struct {
+    bool is_open;
+    float width;
+    float height;
+    void (*on_close)(void);
+    void (*render_content)(void);
+} Rocks_Modal;
+
 
 // rocks_types.h
 typedef struct Rocks_InputState {

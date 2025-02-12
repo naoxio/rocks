@@ -11,6 +11,13 @@
 // Define the global Rocks instance
 Rocks* GRocks = NULL;
 
+void Rocks_HandleGlobalModalClick(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
+    if (pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME && GActiveModal) {
+        Rocks_CloseModal(GActiveModal);
+        GActiveModal = NULL;
+    }
+}
+
 static void BeginFrame(Rocks* rocks) {
     Clay_SetLayoutDimensions((Clay_Dimensions){
         rocks->config.window_width * rocks->global_scaling_factor,
@@ -35,6 +42,7 @@ static void BeginFrame(Rocks* rocks) {
     }) {
         // Handle global clicks for both dropdown and text input
         Clay_OnHover(Rocks_HandleGlobalDropdownClick, 0);
+        Clay_OnHover(Rocks_HandleGlobalModalClick, 0);
         Clay_OnHover(Rocks_HandleGlobalClick, 0);
     }
 }

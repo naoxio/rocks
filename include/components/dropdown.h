@@ -29,7 +29,6 @@ void Rocks_ClearDropdownOptions(Rocks_Dropdown* dropdown);
 void Rocks_SetDropdownSelectedIndex(Rocks_Dropdown* dropdown, int index);
 
 void Rocks_RenderDropdown(Rocks_Dropdown* dropdown, uint32_t id);
-void Rocks_HandleGlobalDropdownClick(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData);
 
 const char* Rocks_GetDropdownSelectedValue(const Rocks_Dropdown* dropdown);
 int Rocks_GetDropdownSelectedIndex(const Rocks_Dropdown* dropdown);

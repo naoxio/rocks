@@ -50,7 +50,7 @@ ar rcs build/raylib/librocks.a build/raylib/*.o
 
 # Build examples with explicit linking of all necessary libraries
 echo "Building Raylib examples..."
-EXAMPLES="hello_world image_viewer scroll_container text_input dropdown"
+EXAMPLES="hello_world image_viewer scroll_container text_input dropdown modal"
 for example in $EXAMPLES; do
   if [ -f "examples/$example.c" ]; then
     echo "Building $example..."

@@ -20,6 +20,8 @@ typedef Clay_RenderCommandArray (*Rocks_UpdateFunction)(Rocks* rocks, float dt);
 // Declare the global Rocks instance
 extern Rocks* GRocks;
 
+static Rocks_Modal* GActiveModal = NULL;
+
 // Core functions
 Rocks* Rocks_Init(Rocks_Config config);
 void Rocks_Cleanup(Rocks* rocks);
@@ -49,7 +51,7 @@ void Rocks_StopTextInput(void);
 
 void Rocks_HandleGlobalDropdownClick(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData);
 void Rocks_HandleGlobalClick(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData);
-
+void Rocks_HandleGlobalModalClick(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData);
 
 // Utility functions
 float Rocks_GetTime(Rocks* rocks);

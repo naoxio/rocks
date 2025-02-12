@@ -54,7 +54,7 @@ ar rcs build/sdl/librocks.a build/sdl/*.o
 
 # Build examples
 echo "Building SDL examples..."
-EXAMPLES="hello_world image_viewer scroll_container text_input dropdown"
+EXAMPLES="hello_world image_viewer scroll_container text_input dropdown modal"
 for example in $EXAMPLES; do
   if [ -f "examples/$example.c" ]; then
     echo "Building $example..."
