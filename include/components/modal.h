@@ -14,4 +14,7 @@ void Rocks_OpenModal(Rocks_Modal* modal);
 void Rocks_CloseModal(Rocks_Modal* modal);
 void Rocks_RenderModal(Rocks_Modal* modal);
 
+void Rocks_HandleModalClose(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData);
+void Rocks_HandleModalOpen(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData);
+
 #endif // ROCKS_MODAL_H

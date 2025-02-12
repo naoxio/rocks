@@ -52,6 +52,26 @@ void Rocks_CloseModal(Rocks_Modal* modal) {
     Rocks_StopTextInput();
     #endif
 }
+
+void Rocks_HandleModalClose(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
+    if (pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+        Rocks_Modal* modal = (Rocks_Modal*)userData;
+        if (modal) {
+            Rocks_CloseModal(modal);
+        }
+    }
+}
+
+void Rocks_HandleModalOpen(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
+    if (pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+        Rocks_Modal* modal = (Rocks_Modal*)userData;
+        if (modal) {
+            Rocks_OpenModal(modal);
+        }
+    }
+}
+
+
 void Rocks_RenderModal(Rocks_Modal* modal) {
     if (!modal || !modal->is_open) return;
     
@@ -107,3 +127,4 @@ void Rocks_RenderModal(Rocks_Modal* modal) {
         }
     }
 }
+

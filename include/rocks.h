@@ -20,7 +20,8 @@ typedef Clay_RenderCommandArray (*Rocks_UpdateFunction)(Rocks* rocks, float dt);
 // Declare the global Rocks instance
 extern Rocks* GRocks;
 
-static Rocks_Modal* GActiveModal = NULL;
+extern Rocks_Modal* GActiveModal;
+
 
 // Core functions
 Rocks* Rocks_Init(Rocks_Config config);

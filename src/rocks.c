@@ -6,11 +6,11 @@
 #include <string.h>
 #include <time.h>
 #include "rocks_custom.h"
-
+#include "components/modal.h"
 
 // Define the global Rocks instance
 Rocks* GRocks = NULL;
-
+Rocks_Modal* GActiveModal = NULL;
 void Rocks_HandleGlobalModalClick(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
     if (pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME && GActiveModal) {
         Rocks_CloseModal(GActiveModal);

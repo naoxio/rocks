@@ -21,24 +21,6 @@ enum {
 static uint16_t g_font_ids[FONT_COUNT];
 static Rocks_Modal* g_modal = NULL;
 
-static void Rocks_HandleModalClose(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
-    if (pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-        Rocks_Modal* modal = (Rocks_Modal*)userData;
-        if (modal) {
-            Rocks_CloseModal(modal);
-        }
-    }
-}
-
-static void Rocks_HandleModalOpen(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
-    if (pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-        Rocks_Modal* modal = (Rocks_Modal*)userData;
-        if (modal) {
-            Rocks_OpenModal(modal);
-        }
-    }
-}
-
 static void on_modal_close(void) {
     printf("Modal closed!\n");
 }
