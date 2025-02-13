@@ -68,19 +68,6 @@ static void render_grid_item(void* data) {
             .fontId = g_font_ids[FONT_BODY]
         }));
 
-        // Create index string
-        char index_str[32];
-        snprintf(index_str, sizeof(index_str), "Index: %d", item->index);
-        Clay_String index_text = {
-            .length = strlen(index_str),
-            .chars = index_str
-        };
-        
-        CLAY_TEXT(index_text, CLAY_TEXT_CONFIG({
-            .textColor = theme.text,
-            .fontSize = 14,
-            .fontId = g_font_ids[FONT_BODY]
-        }));
     }
 }
 
@@ -112,11 +99,6 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
         },
         .backgroundColor = theme.background
     }) {
-        CLAY_TEXT(CLAY_STRING("Grid Example"), CLAY_TEXT_CONFIG({
-            .textColor = theme.text,
-            .fontSize = 32,
-            .fontId = g_font_ids[FONT_TITLE]
-        }));
 
         // Render the grid
         Rocks_BeginGrid(g_grid);
