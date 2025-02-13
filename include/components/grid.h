@@ -7,6 +7,8 @@
 typedef struct {
     float minWidth;        
     float maxWidth;        
+    float minHeight;  
+    float maxHeight;     
     float aspectRatio;     
     float gap;            
     int columns;          
@@ -18,6 +20,7 @@ typedef struct {
     Rocks_GridConfig config;
     int itemCount;
     float containerWidth;
+    float totalHeight;  
     float* itemWidths;    
     float* itemHeights;   
     void** itemData;      
