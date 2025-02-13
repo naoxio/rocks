@@ -1,5 +1,3 @@
-
-// grid.c
 #include "components/grid.h"
 #include <stdlib.h>
 
@@ -56,8 +54,6 @@ void Rocks_AddGridItem(Rocks_Grid* grid, float width, float height, void* data) 
     grid->itemData[idx] = data;
 }
 
-
-
 void Rocks_BeginGrid(Rocks_Grid* grid) {
     if (!grid) return;
     
@@ -68,17 +64,29 @@ void Rocks_BeginGrid(Rocks_Grid* grid) {
         }
     });
 }
+
 void Rocks_RenderGridItem(Rocks_Grid* grid, int index, void (*render_item)(void* data)) {
     if (!grid || index < 0 || index >= grid->itemCount || !render_item) return;
 
-    // Get parent element and its dimensions
-    Clay_ElementId parentId = CLAY_ID("MainContainer");
-    Clay_ElementData parentData = Clay_GetElementData(parentId);
-    float containerWidth = parentData.boundingBox.width;
+    float containerWidth;
+    float containerHeight;
+
+    if (grid->config.containerName) {
+        Clay_String container_name = {
+            .chars = grid->config.containerName,
+            .length = strlen(grid->config.containerName)
+        };
+        Clay_ElementId parentId = Clay__HashString(container_name, 0, 0);
+        Clay_ElementData parentData = Clay_GetElementData(parentId);
+        containerWidth = parentData.boundingBox.width;
+        containerHeight = parentData.boundingBox.height;
+    } else {
+        containerWidth = (float)GRocks->config.window_width;
+        containerHeight = (float)GRocks->config.window_height;
+    }
     float gap = grid->config.gap;
     float padding = grid->config.padding;
 
-    // Calculate number of columns based on container width and minimum item width
     int columns = grid->config.columns;
     if (columns <= 0) {
         float availableWidth = containerWidth - (2 * padding);
@@ -87,7 +95,6 @@ void Rocks_RenderGridItem(Rocks_Grid* grid, int index, void (*render_item)(void*
         if (columns < 1) columns = 1;
     }
 
-    // Calculate actual item width based on number of columns
     float itemWidth = (containerWidth - (2 * padding) - ((columns - 1) * gap)) / columns;
     if (grid->config.maxWidth > 0 && itemWidth > grid->config.maxWidth) {
         itemWidth = grid->config.maxWidth;
@@ -97,15 +104,11 @@ void Rocks_RenderGridItem(Rocks_Grid* grid, int index, void (*render_item)(void*
                       itemWidth / grid->config.aspectRatio : 
                       itemWidth;
 
-    // Calculate row and column for this item
     int row = index / columns;
     int col = index % columns;
-
-    // Calculate position
     float x = padding + (col * (itemWidth + gap));
     float y = padding + (row * (itemHeight + gap));
 
-    // Generate a unique ID for the grid item
     Clay_ElementId itemId = CLAY_IDI_LOCAL("GridItem", index);
 
     CLAY({

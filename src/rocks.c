@@ -58,6 +58,13 @@ Rocks* Rocks_Init(Rocks_Config config) {
     rocks->is_running = true;
     rocks->global_scaling_factor = config.scale_factor > 0 ? config.scale_factor : 1.0f;
 
+    #ifdef ROCKS_USE_RAYLIB
+    if (!rocks->config.renderer_config) {
+        static Rocks_RaylibConfig default_config = {};
+        rocks->config.renderer_config = &default_config;
+    }
+    #endif
+
     if (rocks->config.arena_size == 0) {
         rocks->config.arena_size = DEFAULT_ARENA_SIZE;
     }

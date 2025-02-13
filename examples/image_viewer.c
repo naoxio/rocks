@@ -108,13 +108,7 @@ int main(void) {
     config.renderer_config = &sdl_config;
 #endif
 
-#ifdef ROCKS_USE_RAYLIB
-    Rocks_RaylibConfig raylib_config = {
-        .screen_width = 800,
-        .screen_height = 600
-    };
-    config.renderer_config = &raylib_config;
-#endif
+
 
 #if !defined(ROCKS_USE_SDL2) && !defined(ROCKS_USE_RAYLIB)
     printf("Error: No rendering backend defined. Define either ROCKS_USE_SDL2 or ROCKS_USE_RAYLIB.\n");

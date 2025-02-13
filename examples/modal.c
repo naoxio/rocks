@@ -150,13 +150,6 @@ int main(void) {
     config.renderer_config = &sdl_config;
 #endif
 
-#ifdef ROCKS_USE_RAYLIB
-    Rocks_RaylibConfig raylib_config = {
-        .screen_width = 800,
-        .screen_height = 600
-    };
-    config.renderer_config = &raylib_config;
-#endif
 
     Rocks* rocks = Rocks_Init(config);
     if (!rocks) return 1;

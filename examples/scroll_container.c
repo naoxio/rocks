@@ -150,9 +150,7 @@ int main(void) {
     Rocks_RaylibConfig raylib_config = {
         .scale_factor = 1.0f,
         .vsync = true,
-        .high_dpi = true,
-        .screen_width = 800,
-        .screen_height = 800
+        .high_dpi = true
     };
     config.renderer_config = &raylib_config;
 #endif

@@ -103,8 +103,6 @@ struct Rocks {
 #include <raylib.h>
 
 typedef struct {
-    int screen_width;
-    int screen_height;
     float scale_factor;
     bool vsync;
     bool high_dpi;
