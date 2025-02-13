@@ -1,3 +1,4 @@
 [submodule "clay"]
 	path = clay
 	url = https://github.com/nicbarker/clay.git
+	branch = v0.13
