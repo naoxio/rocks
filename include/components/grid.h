@@ -1,15 +1,12 @@
-// grid.h
 #ifndef ROCKS_GRID_H
 #define ROCKS_GRID_H
 
 #include "rocks.h"
 
 typedef struct {
-    float minWidth;        
-    float maxWidth;        
-    float minHeight;  
-    float maxHeight;     
-    float aspectRatio;     
+    float width;          // Single width value
+    float height;         // Single height value
+    float aspectRatio;    
     float gap;            
     int columns;          
     float padding;        
