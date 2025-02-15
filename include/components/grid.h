@@ -13,7 +13,8 @@ typedef struct {
     float gap;            
     int columns;          
     float padding;        
-    const char* containerName;
+    const char* containerName;   
+    float extraHeight;
 } Rocks_GridConfig;
 
 typedef struct {
@@ -21,14 +22,12 @@ typedef struct {
     int itemCount;
     float containerWidth;
     float totalHeight;  
-    float* itemWidths;    
-    float* itemHeights;   
     void** itemData;      
 } Rocks_Grid;
 
 Rocks_Grid* Rocks_CreateGrid(void);
 void Rocks_InitGrid(Rocks_Grid* grid, Rocks_GridConfig config);
-void Rocks_AddGridItem(Rocks_Grid* grid, float width, float height, void* data);
+void Rocks_AddGridItem(Rocks_Grid* grid, void* data);
 void Rocks_BeginGrid(Rocks_Grid* grid);
 void Rocks_RenderGridItem(Rocks_Grid* grid, int index, void (*render_item)(void* data));
 void Rocks_EndGrid(Rocks_Grid* grid);

@@ -10,7 +10,7 @@ typedef struct {
     Clay_Vector2 shadowOffset;
     float shadowBlurRadius;
     float shadowSpread;
-    // Add any other custom properties you need
+    const char* link; 
 } RocksCustomData;
 
 // Arena allocator for custom data

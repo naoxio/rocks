@@ -5,8 +5,6 @@ Rocks_Grid* Rocks_CreateGrid(void) {
     Rocks_Grid* grid = (Rocks_Grid*)malloc(sizeof(Rocks_Grid));
     if (!grid) return NULL;
 
-    grid->itemWidths = NULL;
-    grid->itemHeights = NULL;
     grid->itemData = NULL;
     grid->itemCount = 0;
     grid->containerWidth = 0;
@@ -27,34 +25,21 @@ void Rocks_InitGrid(Rocks_Grid* grid, Rocks_GridConfig config) {
     if (grid->config.padding < 0) grid->config.padding = 0;
     if (grid->config.columns < 0) grid->config.columns = 0;
 }
-
-void Rocks_AddGridItem(Rocks_Grid* grid, float width, float height, void* data) {
+void Rocks_AddGridItem(Rocks_Grid* grid, void* data) {
     if (!grid) return;
     
     grid->itemCount++;
     
-    float* newWidths = (float*)realloc(grid->itemWidths, grid->itemCount * sizeof(float));
-    float* newHeights = (float*)realloc(grid->itemHeights, grid->itemCount * sizeof(float));
     void** newData = (void**)realloc(grid->itemData, grid->itemCount * sizeof(void*));
     
-    if (!newWidths || !newHeights || !newData) {
-        free(newWidths);
-        free(newHeights);
-        free(newData);
+    if (!newData) {
         grid->itemCount--;
         return;
     }
     
-    grid->itemWidths = newWidths;
-    grid->itemHeights = newHeights;  
     grid->itemData = newData;
-    
-    int idx = grid->itemCount - 1;
-    grid->itemWidths[idx] = width;
-    grid->itemHeights[idx] = height;
-    grid->itemData[idx] = data;
+    grid->itemData[grid->itemCount - 1] = data;
 }
-
 void Rocks_BeginGrid(Rocks_Grid* grid) {
     if (!grid) return;
     
@@ -68,8 +53,14 @@ void Rocks_BeginGrid(Rocks_Grid* grid) {
         Clay_ElementId parentId = Clay__HashString(container_name, 0, 0);
         Clay_ElementData parentData = Clay_GetElementData(parentId);
         containerWidth = parentData.boundingBox.width;
+        // If container width is 0, use window width as fallback
+        if (containerWidth <= 0) {
+            containerWidth = (float)GRocks->config.window_width;
+        }
+        printf("Container width from name: %f\n", containerWidth);
     } else {
         containerWidth = (float)GRocks->config.window_width;
+        printf("Container width from window: %f\n", containerWidth);
     }
 
     // Calculate grid layout
@@ -82,29 +73,31 @@ void Rocks_BeginGrid(Rocks_Grid* grid) {
         float itemWidth = grid->config.minWidth + gap;
         columns = (int)((availableWidth + gap) / itemWidth);
         if (columns < 1) columns = 1;
+        printf("Calculated columns: %d\n", columns);
     }
 
     int rows = (grid->itemCount + columns - 1) / columns;
 
     float itemWidth = (containerWidth - (2 * padding) - ((columns - 1) * gap)) / columns;
+    // Ensure itemWidth is never negative
+    if (itemWidth < grid->config.minWidth) {
+        itemWidth = grid->config.minWidth;
+    }
     if (grid->config.maxWidth > 0 && itemWidth > grid->config.maxWidth) {
         itemWidth = grid->config.maxWidth;
     }
+    printf("Final itemWidth: %f\n", itemWidth);
 
     float itemHeight;
     if (grid->config.aspectRatio > 0) {
         itemHeight = itemWidth / grid->config.aspectRatio;
     } else {
-        itemHeight = grid->config.minHeight;
-    }
-
-    if (grid->config.maxHeight > 0 && itemHeight > grid->config.maxHeight) {
         itemHeight = grid->config.maxHeight;
     }
 
     // Calculate and store total height
-    grid->totalHeight = (2 * padding) + (rows * itemHeight) + ((rows - 1) * gap);
-    
+    grid->totalHeight = (2 * padding) + (rows * itemHeight) + ((rows - 1) * gap) + grid->config.extraHeight;
+
     // Create the grid container with calculated height
     CLAY({
         .layout = {
@@ -113,7 +106,6 @@ void Rocks_BeginGrid(Rocks_Grid* grid) {
         }
     });
 }
-
 void Rocks_RenderGridItem(Rocks_Grid* grid, int index, void (*render_item)(void* data)) {
     if (!grid || index < 0 || index >= grid->itemCount || !render_item) return;
 
@@ -159,13 +151,8 @@ void Rocks_RenderGridItem(Rocks_Grid* grid, int index, void (*render_item)(void*
     // Calculate item height
     float itemHeight;
     if (grid->config.aspectRatio > 0) {
-        // Use aspect ratio to determine height
         itemHeight = itemWidth / grid->config.aspectRatio;
-    } else if (grid->itemHeights[index] > 0) {
-        // Use individual item height if specified
-        itemHeight = grid->itemHeights[index];
     } else {
-        // Use min height as default
         itemHeight = grid->config.minHeight;
     }
 
@@ -217,8 +204,6 @@ void Rocks_EndGrid(Rocks_Grid* grid) {
 void Rocks_DestroyGrid(Rocks_Grid* grid) {
     if (!grid) return;
     
-    free(grid->itemWidths);
-    free(grid->itemHeights);
     free(grid->itemData);
     free(grid);
 }

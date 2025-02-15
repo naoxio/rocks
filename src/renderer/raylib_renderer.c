@@ -371,6 +371,32 @@ void Rocks_ProcessEventsRaylib(Rocks* rocks) {
 
     // Handle drag scrolling
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        Vector2 mousePos = GetMousePosition();
+        mousePos.x /= r->scale_factor;
+        mousePos.y /= r->scale_factor;
+        
+        // Check for link clicks first
+        for (uint32_t i = 0; i < rocks->current_frame_commands.length; i++) {
+            Clay_RenderCommand* cmd = Clay_RenderCommandArray_Get(&rocks->current_frame_commands, i);
+            if (!cmd || !cmd->userData) continue;
+
+            RocksCustomData* customData = (RocksCustomData*)cmd->userData;
+            if (customData->link) {
+                Rectangle bounds = {
+                    cmd->boundingBox.x,
+                    cmd->boundingBox.y,
+                    cmd->boundingBox.width,
+                    cmd->boundingBox.height
+                };
+
+                if (CheckCollisionPointRec(mousePos, bounds)) {
+                    OpenURL(customData->link);
+                    return; // Exit early since we handled the click
+                }
+            }
+        }
+
+        // If no link was clicked, handle normal scrolling behavior
         r->last_mouse_move_time = GetTime();
         g_scroll_state.is_dragging = true;
         g_scroll_state.drag_start = (Clay_Vector2){mousePos.x, mousePos.y};
