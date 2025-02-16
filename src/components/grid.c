@@ -39,7 +39,6 @@ void Rocks_AddGridItem(Rocks_Grid* grid, void* data) {
     grid->itemData[grid->itemCount - 1] = data;
 }
 
-
 void Rocks_BeginGrid(Rocks_Grid* grid) {
     if (!grid) return;
     
@@ -77,12 +76,8 @@ void Rocks_BeginGrid(Rocks_Grid* grid) {
         itemWidth = grid->config.width;
     }
 
-    float itemHeight;
-    if (grid->config.aspectRatio > 0) {
-        itemHeight = itemWidth / grid->config.aspectRatio;
-    } else {
-        itemHeight = grid->config.height;
-    }
+    // Calculate height maintaining original aspect ratio
+    float itemHeight = (itemWidth * grid->config.height) / grid->config.width;
 
     grid->totalHeight = (2 * padding) + (rows * itemHeight) + ((rows - 1) * gap) + grid->config.extraHeight;
 
@@ -93,8 +88,6 @@ void Rocks_BeginGrid(Rocks_Grid* grid) {
         }
     });
 }
-
-
 void Rocks_RenderGridItem(Rocks_Grid* grid, int index, void (*render_item)(void* data)) {
     if (!grid || index < 0 || index >= grid->itemCount || !render_item) return;
 
@@ -131,12 +124,8 @@ void Rocks_RenderGridItem(Rocks_Grid* grid, int index, void (*render_item)(void*
         itemWidth = grid->config.width;
     }
 
-    float itemHeight;
-    if (grid->config.aspectRatio > 0) {
-        itemHeight = itemWidth / grid->config.aspectRatio;
-    } else {
-        itemHeight = grid->config.height;
-    }
+    // Calculate height maintaining original aspect ratio
+    float itemHeight = (itemWidth * grid->config.height) / grid->config.width;
 
     int row = index / columns;
     int col = index % columns;

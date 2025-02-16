@@ -32,6 +32,23 @@ Clay_Dimensions Rocks_MeasureTextRaylib(Clay_StringSlice text, Clay_TextElementC
     return (Clay_Dimensions){textSize.x, textSize.y};
 }
 
+static bool IsInsideModal(Vector2 point) {
+    if (!GActiveModal) return false;
+    
+    Clay_ElementId modalContentId = Clay_GetElementId(CLAY_STRING("RocksModalContent"));
+    Clay_ElementData modalData = Clay_GetElementData(modalContentId);
+    if (modalData.found) {
+        Rectangle modalBounds = {
+            modalData.boundingBox.x,
+            modalData.boundingBox.y,
+            modalData.boundingBox.width,
+            modalData.boundingBox.height
+        };
+        return CheckCollisionPointRec(point, modalBounds);
+    }
+    return false;
+}
+
 static void UpdateScrollState(Rocks_RaylibRenderer* r) {
     const float DECELERATION = 0.95f;
     const float MIN_VELOCITY = 0.1f;
@@ -70,6 +87,14 @@ static void RenderScrollbar(
     Clay_ScrollElementConfig* config,
     Clay_ElementId elementId
 ) {
+
+    if (GActiveModal) {
+        Vector2 containerPos = {boundingBox.x, boundingBox.y};
+        if (!IsInsideModal(containerPos)) {
+            return;
+        }
+    }
+
     Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
     if (!scrollData.found) {
         return;
@@ -304,7 +329,6 @@ Clay_Dimensions Rocks_GetImageDimensionsRaylib(Rocks* rocks, void* image_data) {
 float Rocks_GetTimeRaylib(void) {
     return GetTime();
 }
-
 void Rocks_ProcessEventsRaylib(Rocks* rocks) {
     Rocks_RaylibRenderer* r = rocks->renderer_data;
     if (!r) return;
@@ -334,7 +358,6 @@ void Rocks_ProcessEventsRaylib(Rocks* rocks) {
     rocks->input.mousePositionY = mousePos.y;
     rocks->input.isMouseDown = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
 
-
     // Text input
     rocks->input.charPressed = GetCharPressed();
     rocks->input.enterPressed = IsKeyPressed(KEY_ENTER);
@@ -342,26 +365,42 @@ void Rocks_ProcessEventsRaylib(Rocks* rocks) {
     rocks->input.leftPressed = IsKeyPressed(KEY_LEFT);
     rocks->input.rightPressed = IsKeyPressed(KEY_RIGHT);
 
-
     // Check if mouse moved
     static Vector2 lastMousePos = {0};
     if (mousePos.x != lastMousePos.x || mousePos.y != lastMousePos.y) {
-        // Check if mouse is within any scroll container
-        for (int i = 0; i < r->scroll_container_count; i++) {
-            Clay_ElementId elementId = {.id = r->scroll_containers[i].elementId};
-            Clay_ElementData elementData = Clay_GetElementData(elementId);
-            
-            if (elementData.found) {
-                Rectangle bounds = {
-                    elementData.boundingBox.x,
-                    elementData.boundingBox.y,
-                    elementData.boundingBox.width,
-                    elementData.boundingBox.height
+        // Only check scroll containers if no modal is active or if inside modal
+        bool insideModal = false;
+        if (GActiveModal) {
+            Clay_ElementId modalContentId = Clay_GetElementId(CLAY_STRING("RocksModalContent"));
+            Clay_ElementData modalData = Clay_GetElementData(modalContentId);
+            if (modalData.found) {
+                Rectangle modalBounds = {
+                    modalData.boundingBox.x,
+                    modalData.boundingBox.y,
+                    modalData.boundingBox.width,
+                    modalData.boundingBox.height
                 };
+                insideModal = CheckCollisionPointRec(mousePos, modalBounds);
+            }
+        }
+
+        if (!GActiveModal || insideModal) {
+            for (int i = 0; i < r->scroll_container_count; i++) {
+                Clay_ElementId elementId = {.id = r->scroll_containers[i].elementId};
+                Clay_ElementData elementData = Clay_GetElementData(elementId);
                 
-                if (CheckCollisionPointRec(mousePos, bounds)) {
-                    r->last_mouse_move_time = GetTime();
-                    break;
+                if (elementData.found) {
+                    Rectangle bounds = {
+                        elementData.boundingBox.x,
+                        elementData.boundingBox.y,
+                        elementData.boundingBox.width,
+                        elementData.boundingBox.height
+                    };
+                    
+                    if (CheckCollisionPointRec(mousePos, bounds)) {
+                        r->last_mouse_move_time = GetTime();
+                        break;
+                    }
                 }
             }
         }
@@ -376,6 +415,7 @@ void Rocks_ProcessEventsRaylib(Rocks* rocks) {
         mousePos.y /= r->scale_factor;
         
         // Check for link clicks first
+        bool linkClicked = false;
         for (uint32_t i = 0; i < rocks->current_frame_commands.length; i++) {
             Clay_RenderCommand* cmd = Clay_RenderCommandArray_Get(&rocks->current_frame_commands, i);
             if (!cmd || !cmd->userData) continue;
@@ -391,73 +431,114 @@ void Rocks_ProcessEventsRaylib(Rocks* rocks) {
 
                 if (CheckCollisionPointRec(mousePos, bounds)) {
                     OpenURL(customData->link);
-                    return; // Exit early since we handled the click
+                    linkClicked = true;
+                    break;
                 }
             }
         }
 
-        // If no link was clicked, handle normal scrolling behavior
-        r->last_mouse_move_time = GetTime();
-        g_scroll_state.is_dragging = true;
-        g_scroll_state.drag_start = (Clay_Vector2){mousePos.x, mousePos.y};
-        
-        // Check if we're clicking on a scrollbar handle
-        for (int i = 0; i < r->scroll_container_count; i++) {
-            Clay_ElementId elementId = {.id = r->scroll_containers[i].elementId};
-            Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
-            Clay_ElementData elementData = Clay_GetElementData(elementId);
-            
-            if (!scrollData.found || !elementData.found) continue;
-
-            Rectangle verticalThumb = {0};
-            Rectangle horizontalThumb = {0};
-            
-            if (scrollData.config.vertical) {
-                float viewportSize = scrollData.scrollContainerDimensions.height;
-                float contentSize = scrollData.contentDimensions.height;
-                float thumbSize = fmaxf((viewportSize / contentSize) * viewportSize, SCROLLBAR_SIZE * r->scale_factor * 2);
-                float maxScroll = contentSize - viewportSize;
-                float scrollProgress = -scrollData.scrollPosition->y / maxScroll;
-                float maxTrackSize = viewportSize - thumbSize;
-                float thumbPosition = scrollProgress * maxTrackSize;
-                
-                verticalThumb = (Rectangle){
-                    (elementData.boundingBox.x + elementData.boundingBox.width - SCROLLBAR_SIZE * r->scale_factor),
-                    elementData.boundingBox.y + thumbPosition,
-                    SCROLLBAR_SIZE * r->scale_factor,
-                    thumbSize
-                };
-            }
-            
-            if (scrollData.config.horizontal) {
-                float viewportSize = scrollData.scrollContainerDimensions.width;
-                float contentSize = scrollData.contentDimensions.width;
-                float thumbSize = fmaxf((viewportSize / contentSize) * viewportSize, SCROLLBAR_SIZE * r->scale_factor * 2);
-                float maxScroll = contentSize - viewportSize;
-                float scrollProgress = -scrollData.scrollPosition->x / maxScroll;
-                float maxTrackSize = viewportSize - thumbSize;
-                float thumbPosition = scrollProgress * maxTrackSize;
-                
-                horizontalThumb = (Rectangle){
-                    elementData.boundingBox.x + thumbPosition,
-                    (elementData.boundingBox.y + elementData.boundingBox.height - SCROLLBAR_SIZE * r->scale_factor),
-                    thumbSize,
-                    SCROLLBAR_SIZE * r->scale_factor
-                };
+        // Only proceed if no link was clicked
+        if (!linkClicked) {
+            // Check if we're inside modal if one is active
+            bool insideModal = false;
+            if (GActiveModal) {
+                Clay_ElementId modalContentId = Clay_GetElementId(CLAY_STRING("RocksModalContent"));
+                Clay_ElementData modalData = Clay_GetElementData(modalContentId);
+                if (modalData.found) {
+                    Rectangle modalBounds = {
+                        modalData.boundingBox.x,
+                        modalData.boundingBox.y,
+                        modalData.boundingBox.width,
+                        modalData.boundingBox.height
+                    };
+                    insideModal = CheckCollisionPointRec(mousePos, modalBounds);
+                }
             }
 
-            if (CheckCollisionPointRec(mousePos, verticalThumb)) {
-                g_scroll_state.is_dragging_handle = true;
-                g_scroll_state.vertical_scrollbar = true;
-                g_scroll_state.active_scrollbar_id = r->scroll_containers[i].elementId;
-                g_scroll_state.scroll_start = *scrollData.scrollPosition;
-                break;
-            } else if (CheckCollisionPointRec(mousePos, horizontalThumb)) {
-                g_scroll_state.is_dragging_handle = true;
-                g_scroll_state.vertical_scrollbar = false;
-                g_scroll_state.active_scrollbar_id = r->scroll_containers[i].elementId;
-                g_scroll_state.scroll_start = *scrollData.scrollPosition;
-                break;
+            // Only check containers if we're either inside modal or no modal is active
+            if (!GActiveModal || insideModal) {
+                bool containerClicked = false;
+                for (int i = 0; i < r->scroll_container_count; i++) {
+                    Clay_ElementId elementId = {.id = r->scroll_containers[i].elementId};
+                    Clay_ElementData elementData = Clay_GetElementData(elementId);
+                    
+                    if (elementData.found) {
+                        Rectangle bounds = {
+                            elementData.boundingBox.x,
+                            elementData.boundingBox.y,
+                            elementData.boundingBox.width,
+                            elementData.boundingBox.height
+                        };
+                        
+                        if (CheckCollisionPointRec(mousePos, bounds)) {
+                            r->last_mouse_move_time = GetTime();
+                            g_scroll_state.is_dragging = true;
+                            g_scroll_state.drag_start = (Clay_Vector2){mousePos.x, mousePos.y};
+                            g_scroll_state.active_container_id = r->scroll_containers[i].elementId;
+                            containerClicked = true;
+
+                            Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
+                            if (scrollData.found) {
+                                Rectangle verticalThumb = {0};
+                                Rectangle horizontalThumb = {0};
+                                
+                                if (scrollData.config.vertical) {
+                                    float viewportSize = scrollData.scrollContainerDimensions.height;
+                                    float contentSize = scrollData.contentDimensions.height;
+                                    float thumbSize = fmaxf((viewportSize / contentSize) * viewportSize, SCROLLBAR_SIZE * r->scale_factor * 2);
+                                    float maxScroll = contentSize - viewportSize;
+                                    float scrollProgress = -scrollData.scrollPosition->y / maxScroll;
+                                    float maxTrackSize = viewportSize - thumbSize;
+                                    float thumbPosition = scrollProgress * maxTrackSize;
+                                    
+                                    verticalThumb = (Rectangle){
+                                        (elementData.boundingBox.x + elementData.boundingBox.width - SCROLLBAR_SIZE * r->scale_factor),
+                                        elementData.boundingBox.y + thumbPosition,
+                                        SCROLLBAR_SIZE * r->scale_factor,
+                                        thumbSize
+                                    };
+                                }
+                                
+                                if (scrollData.config.horizontal) {
+                                    float viewportSize = scrollData.scrollContainerDimensions.width;
+                                    float contentSize = scrollData.contentDimensions.width;
+                                    float thumbSize = fmaxf((viewportSize / contentSize) * viewportSize, SCROLLBAR_SIZE * r->scale_factor * 2);
+                                    float maxScroll = contentSize - viewportSize;
+                                    float scrollProgress = -scrollData.scrollPosition->x / maxScroll;
+                                    float maxTrackSize = viewportSize - thumbSize;
+                                    float thumbPosition = scrollProgress * maxTrackSize;
+                                    
+                                    horizontalThumb = (Rectangle){
+                                        elementData.boundingBox.x + thumbPosition,
+                                        (elementData.boundingBox.y + elementData.boundingBox.height - SCROLLBAR_SIZE * r->scale_factor),
+                                        thumbSize,
+                                        SCROLLBAR_SIZE * r->scale_factor
+                                    };
+                                }
+
+                                if (CheckCollisionPointRec(mousePos, verticalThumb)) {
+                                    g_scroll_state.is_dragging_handle = true;
+                                    g_scroll_state.vertical_scrollbar = true;
+                                    g_scroll_state.active_scrollbar_id = r->scroll_containers[i].elementId;
+                                    g_scroll_state.scroll_start = *scrollData.scrollPosition;
+                                    break;
+                                } else if (CheckCollisionPointRec(mousePos, horizontalThumb)) {
+                                    g_scroll_state.is_dragging_handle = true;
+                                    g_scroll_state.vertical_scrollbar = false;
+                                    g_scroll_state.active_scrollbar_id = r->scroll_containers[i].elementId;
+                                    g_scroll_state.scroll_start = *scrollData.scrollPosition;
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                if (!containerClicked) {
+                    g_scroll_state.is_dragging = false;
+                    g_scroll_state.active_container_id = 0;
+                }
             }
         }
     }
@@ -497,42 +578,88 @@ void Rocks_ProcessEventsRaylib(Rocks* rocks) {
                     scrollData.scrollPosition->x = Clamp(newScrollX, maxScrollX, 0);
                 }
             }
-        } else {
-            // Content drag scrolling
-            Clay_Vector2 scrollDelta = {dragDelta.x, dragDelta.y};
-            Clay_UpdateScrollContainers(true, scrollDelta, GetFrameTime());
+        } else if (g_scroll_state.active_container_id != 0) {
+            Clay_ElementId elementId = {.id = g_scroll_state.active_container_id};
+            Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
             
-            // Update velocity for momentum
-            g_scroll_state.velocity_x = (mousePos.x - g_scroll_state.drag_start.x) / GetFrameTime();
-            g_scroll_state.velocity_y = (mousePos.y - g_scroll_state.drag_start.y) / GetFrameTime();
+            if (scrollData.found) {
+                if (scrollData.config.vertical) {
+                    scrollData.scrollPosition->y += dragDelta.y;
+                    float maxScrollY = -(scrollData.contentDimensions.height - scrollData.scrollContainerDimensions.height);
+                    scrollData.scrollPosition->y = Clamp(scrollData.scrollPosition->y, maxScrollY, 0);
+                }
+                if (scrollData.config.horizontal) {
+                    scrollData.scrollPosition->x += dragDelta.x;
+                    float maxScrollX = -(scrollData.contentDimensions.width - scrollData.scrollContainerDimensions.width);
+                    scrollData.scrollPosition->x = Clamp(scrollData.scrollPosition->x, maxScrollX, 0);
+                }
+                
+                g_scroll_state.velocity_x = (mousePos.x - g_scroll_state.drag_start.x) / GetFrameTime();
+                g_scroll_state.velocity_y = (mousePos.y - g_scroll_state.drag_start.y) / GetFrameTime();
+            }
             
             g_scroll_state.drag_start = (Clay_Vector2){mousePos.x, mousePos.y};
         }
     }
 
-    // Handle mouse wheel for scrolling
     float wheelMove = GetMouseWheelMove();
     if (wheelMove != 0) {
         r->last_mouse_move_time = GetTime();
         
-        Vector2 currentPos = {mousePos.x, mousePos.y};
-        Clay_SetPointerState((Clay_Vector2){currentPos.x, currentPos.y}, false);
+        Vector2 mousePos = GetMousePosition();
+        mousePos.x /= r->scale_factor;
+        mousePos.y /= r->scale_factor;
 
-        for (int i = 0; i < r->scroll_container_count; i++) {
-            Clay_ElementId elementId = {.id = r->scroll_containers[i].elementId};
-            Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
-            
-            if (scrollData.found) {
-                const float SCROLL_SPEED = 30.0f;
-                Clay_Vector2 scrollDelta = {0, 0};
+        // Check if we're inside modal if one is active
+        bool insideModal = false;
+        if (GActiveModal) {
+            Clay_ElementId modalContentId = Clay_GetElementId(CLAY_STRING("RocksModalContent"));
+            Clay_ElementData modalData = Clay_GetElementData(modalContentId);
+            if (modalData.found) {
+                Rectangle modalBounds = {
+                    modalData.boundingBox.x,
+                    modalData.boundingBox.y,
+                    modalData.boundingBox.width,
+                    modalData.boundingBox.height
+                };
+                insideModal = CheckCollisionPointRec(mousePos, modalBounds);
+            }
+        }
 
-                if (scrollData.config.vertical) {
-                    scrollDelta.y = wheelMove * SCROLL_SPEED;
-                } else if (scrollData.config.horizontal) {
-                    scrollDelta.x = wheelMove * SCROLL_SPEED;
+        // Only process wheel scrolling if we're either inside modal or no modal is active
+        if (!GActiveModal || insideModal) {
+            bool containerFound = false;
+            for (int i = 0; i < r->scroll_container_count; i++) {
+                Clay_ElementId elementId = {.id = r->scroll_containers[i].elementId};
+                Clay_ElementData elementData = Clay_GetElementData(elementId);
+                Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
+                
+                if (elementData.found && scrollData.found) {
+                    Rectangle bounds = {
+                        elementData.boundingBox.x,
+                        elementData.boundingBox.y,
+                        elementData.boundingBox.width,
+                        elementData.boundingBox.height
+                    };
+                    
+                    if (CheckCollisionPointRec(mousePos, bounds)) {
+                        const float SCROLL_SPEED = 30.0f;
+                        
+                        if (scrollData.config.vertical) {
+                            scrollData.scrollPosition->y += wheelMove * SCROLL_SPEED;
+                            float maxScrollY = -(scrollData.contentDimensions.height - scrollData.scrollContainerDimensions.height);
+                            scrollData.scrollPosition->y = Clamp(scrollData.scrollPosition->y, maxScrollY, 0);
+                        } 
+                        else if (scrollData.config.horizontal) {
+                            scrollData.scrollPosition->x += wheelMove * SCROLL_SPEED;
+                            float maxScrollX = -(scrollData.contentDimensions.width - scrollData.scrollContainerDimensions.width);
+                            scrollData.scrollPosition->x = Clamp(scrollData.scrollPosition->x, maxScrollX, 0);
+                        }
+                        
+                        containerFound = true;
+                        break;
+                    }
                 }
-
-                Clay_UpdateScrollContainers(true, scrollDelta, GetFrameTime());
             }
         }
     }
@@ -558,7 +685,6 @@ void Rocks_ProcessEventsRaylib(Rocks* rocks) {
     // Update scroll physics
     UpdateScrollState(r);
 }
-
 
 void Rocks_RenderRaylib(Rocks* rocks, Clay_RenderCommandArray commands) {
     Rocks_RaylibRenderer* r = rocks->renderer_data;
@@ -664,23 +790,33 @@ void Rocks_RenderRaylib(Rocks* rocks, Clay_RenderCommandArray commands) {
                 DrawRectangleRoundedLines(rect, roundness, 8, 2.0f, color);
                 break;
             }
-
             case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
-                // Track scroll container
+                // Only track scroll container if it's not under a modal
                 if (r->scroll_container_count < MAX_SCROLL_CONTAINERS) {
-                    r->scroll_containers[r->scroll_container_count].elementId = cmd->id;
-                    r->scroll_containers[r->scroll_container_count].openThisFrame = true;
-                    r->scroll_container_count++;
+                    bool shouldTrack = true;
+                    if (GActiveModal) {
+                        Vector2 containerPos = {
+                            cmd->boundingBox.x,
+                            cmd->boundingBox.y
+                        };
+                        shouldTrack = IsInsideModal(containerPos);
+                    }
 
-                    Clay_ElementId elementId = { .id = cmd->id };
-                    Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
-                    
-                    if (scrollData.found) {
-                        if (scrollData.config.vertical) {
-                            RenderScrollbar(r, cmd->boundingBox, true, &scrollData.config, elementId);
-                        }
-                        if (scrollData.config.horizontal) {
-                            RenderScrollbar(r, cmd->boundingBox, false, &scrollData.config, elementId);
+                    if (shouldTrack) {
+                        r->scroll_containers[r->scroll_container_count].elementId = cmd->id;
+                        r->scroll_containers[r->scroll_container_count].openThisFrame = true;
+                        r->scroll_container_count++;
+
+                        Clay_ElementId elementId = { .id = cmd->id };
+                        Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(elementId);
+                        
+                        if (scrollData.found) {
+                            if (scrollData.config.vertical) {
+                                RenderScrollbar(r, cmd->boundingBox, true, &scrollData.config, elementId);
+                            }
+                            if (scrollData.config.horizontal) {
+                                RenderScrollbar(r, cmd->boundingBox, false, &scrollData.config, elementId);
+                            }
                         }
                     }
                 }

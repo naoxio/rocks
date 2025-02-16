@@ -35,6 +35,7 @@ struct Rocks_ScrollState {
     bool is_dragging_handle;
     bool vertical_scrollbar;
     uint32_t active_scrollbar_id;
+    uint32_t active_container_id; 
     Clay_Vector2 drag_start;
     Clay_Vector2 scroll_start;
     float velocity_x;

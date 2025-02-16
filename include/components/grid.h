@@ -4,9 +4,8 @@
 #include "rocks.h"
 
 typedef struct {
-    float width;          // Single width value
-    float height;         // Single height value
-    float aspectRatio;    
+    float width; 
+    float height;  
     float gap;            
     int columns;          
     float padding;        

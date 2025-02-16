@@ -159,9 +159,8 @@ int main(void) {
 
     // Create and configure grid
     Rocks_GridConfig grid_config = {
-        .minWidth = 200,
-        .maxWidth = 300,
-        .aspectRatio = 1.0f,  // Square items
+        .width = 200,
+        .height = 200,
         .gap = 20,
         .columns = 0,  // Auto-fit columns
         .padding = 20
@@ -172,7 +171,7 @@ int main(void) {
 
     // Add items to grid
     for (int i = 0; i < sizeof(g_items)/sizeof(g_items[0]); i++) {
-        Rocks_AddGridItem(g_grid, 0, 0, &g_items[i]);  // Using default sizes
+        Rocks_AddGridItem(g_grid, &g_items[i]);  // Using default sizes
     }
 
     Rocks_Run(rocks, update);
