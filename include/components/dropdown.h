@@ -16,6 +16,8 @@ typedef struct {
     char options[ROCKS_MAX_DROPDOWN_OPTIONS][ROCKS_MAX_OPTION_LENGTH];
     int num_options;
     int selected_index;
+    int font_size;
+    uint16_t font_id;
     bool is_open;
     void (*on_change)(int selected_index, const char* selected_value);
 } Rocks_Dropdown;
@@ -32,5 +34,5 @@ void Rocks_RenderDropdown(Rocks_Dropdown* dropdown, uint32_t id);
 
 const char* Rocks_GetDropdownSelectedValue(const Rocks_Dropdown* dropdown);
 int Rocks_GetDropdownSelectedIndex(const Rocks_Dropdown* dropdown);
-
+void Rocks_SetDropdownFont(Rocks_Dropdown* dropdown, uint16_t font_id, int font_size);
 #endif // ROCKS_DROPDOWN_H

@@ -47,6 +47,8 @@ Rocks_Dropdown* Rocks_CreateDropdown(void (*on_change)(int selected_index, const
     dropdown->selected_index = 0;
     dropdown->is_open = false;
     dropdown->on_change = on_change;
+    dropdown->font_size = 14;
+    dropdown->font_id = 0;  
     
     return dropdown;
 }
@@ -55,6 +57,11 @@ void Rocks_DestroyDropdown(Rocks_Dropdown* dropdown) {
     if (dropdown) {
         free(dropdown);
     }
+}
+void Rocks_SetDropdownFont(Rocks_Dropdown* dropdown, uint16_t font_id, int font_size) {
+    if (!dropdown) return;
+    dropdown->font_id = font_id;
+    dropdown->font_size = font_size;
 }
 
 void Rocks_AddDropdownOption(Rocks_Dropdown* dropdown, const char* option) {
@@ -113,7 +120,8 @@ void Rocks_RenderDropdown(Rocks_Dropdown* dropdown, uint32_t id) {
             };
             CLAY_TEXT(selected_text, CLAY_TEXT_CONFIG({
                 .textColor = theme.text,
-                .fontSize = 16
+                .fontSize = dropdown->font_size,
+                .fontId = dropdown->font_id
             }));
 
             CLAY({ .layout = { .sizing = { CLAY_SIZING_GROW(0) } } }) {}
@@ -168,7 +176,8 @@ void Rocks_RenderDropdown(Rocks_Dropdown* dropdown, uint32_t id) {
                     };
                     CLAY_TEXT(option_text, CLAY_TEXT_CONFIG({
                         .textColor = theme.text,
-                        .fontSize = 16
+                        .fontSize = dropdown->font_size,
+                        .fontId = dropdown->font_id
                     }));
                 }
             }
