@@ -2,3 +2,6 @@
 	path = clay
 	url = https://github.com/nicbarker/clay.git
 	branch = v0.13
+[submodule "vendor/nanosvg"]
+	path = vendor/nanosvg
+	url = https://github.com/memononen/nanosvg.git

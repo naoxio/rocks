@@ -291,6 +291,20 @@ void* Rocks_LoadImage(Rocks* rocks, const char* path) {
     return (void*)path;
 }
 
+void* Rocks_LoadImageFromMemory(Rocks* rocks, const char* data, size_t length) {
+    if (!rocks || !data || length == 0) return NULL;
+
+#ifdef ROCKS_USE_SDL2
+    return Rocks_LoadImageFromMemorySDL2(rocks, data, length);
+#endif
+
+#ifdef ROCKS_USE_RAYLIB
+    return Rocks_LoadImageFromMemoryRaylib(rocks, data, length);
+#endif
+
+    return NULL;
+}
+
 void Rocks_UnloadImage(Rocks* rocks, void* image_data) {
     if (!rocks || !image_data) return;
 

@@ -131,7 +131,7 @@ static Clay_RenderCommandArray update(Rocks* rocks, float dt) {
 int main(void) {
     Rocks_Config config = {
         .window_width = 800,
-        .window_height = 800,  // Increased height to accommodate both SVGs
+        .window_height = 800, 
         .window_title = "SVG Examples",
         .theme = Rocks_ThemeDefault(),
         .scale_factor = 1.0f

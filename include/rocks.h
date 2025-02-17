@@ -38,7 +38,9 @@ uint16_t Rocks_LoadFont(const char* path, int size, uint16_t expected_id);
 void Rocks_UnloadFont(uint16_t font_id);
 
 // Image management
+void* Rocks_CreateDefaultImage(Rocks* rocks); 
 void* Rocks_LoadImage(Rocks* rocks, const char* path);
+void* Rocks_LoadImageFromMemory(Rocks* rocks, const char* data, size_t length);
 void Rocks_UnloadImage(Rocks* rocks, void* image_data);
 Clay_Dimensions Rocks_GetImageDimensions(Rocks* rocks, void* image_data);
 

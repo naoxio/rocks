@@ -67,6 +67,7 @@ void Rocks_UnloadFontRaylib(Rocks* rocks, uint16_t font_id);
 void* Rocks_LoadImageRaylib(Rocks* rocks, const char* path);
 void Rocks_UnloadImageRaylib(Rocks* rocks, void* image_data);
 Clay_Dimensions Rocks_GetImageDimensionsRaylib(Rocks* rocks, void* image_data);
+void* Rocks_LoadImageFromMemoryRaylib(Rocks* rocks, const char* data, size_t length);
 
 void Rocks_SetWindowSizeRaylib(Rocks* rocks, int width, int height);
 void Rocks_ToggleFullscreenRaylib(Rocks* rocks);

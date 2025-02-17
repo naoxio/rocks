@@ -14,6 +14,8 @@ EXAMPLES_DIR = examples
 ASSETS_DIR = $(EXAMPLES_DIR)/assets
 COMPONENTS_DIR = $(SRC_DIR)/components
 RENDERER_DIR = $(SRC_DIR)/renderer
+VENDOR_DIR = vendor
+NANOSVG_DIR = $(VENDOR_DIR)/nanosvg/src
 
 # SDL2 specific
 SDL_BUILD_DIR = $(BUILD_DIR)/sdl
@@ -28,7 +30,7 @@ RAYLIB_LIBS = $(shell pkg-config --libs raylib)
 RAYLIB_DEFINES = -DROCKS_USE_RAYLIB
 
 # Common flags
-COMMON_FLAGS = -I$(INCLUDE_DIR) -I$(CLAY_DIR) -D_CRT_SECURE_NO_WARNINGS
+COMMON_FLAGS = -I$(INCLUDE_DIR) -I$(CLAY_DIR) -I$(NANOSVG_DIR) -D_CRT_SECURE_NO_WARNINGS
 COMMON_LIBS = -lm -ldl -lpthread
 
 # Source files
@@ -38,7 +40,7 @@ SDL_RENDERER_SRCS = $(wildcard $(RENDERER_DIR)/sdl2_*.c)
 RAYLIB_RENDERER_SRCS = $(RENDERER_DIR)/raylib_renderer.c
 
 # Example files
-EXAMPLES = hello_world image_viewer scroll_container text_input dropdown modal grid
+EXAMPLES = hello_world image_viewer scroll_container text_input dropdown modal grid svg_viewer
 
 # Object files
 SDL_OBJS = $(MAIN_SRCS:$(SRC_DIR)/%.c=$(SDL_BUILD_DIR)/%.o) \
@@ -114,4 +116,3 @@ examples_raylib: $(RAYLIB_BUILD_DIR)/librocks.a
 # Clean
 clean:
 	$(RM) $(BUILD_DIR)
-	

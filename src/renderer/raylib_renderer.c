@@ -4,6 +4,13 @@
 #include "raymath.h"
 #include "rocks_custom.h"
 
+
+#define NANOSVG_IMPLEMENTATION 
+#include "nanosvg.h"
+
+#define NANOSVGRAST_IMPLEMENTATION
+#include "nanosvgrast.h"
+
 #define MAX_SCROLL_CONTAINERS 32
 #define SCROLLBAR_SIZE 10.0f
 #define SCROLLBAR_FADE_DURATION 0.6f
@@ -298,21 +305,244 @@ void Rocks_UnloadFontRaylib(Rocks* rocks, uint16_t font_id) {
     }
 }
 
-void* Rocks_LoadImageRaylib(Rocks* rocks, const char* path) {
-    if (!path) return NULL;
-    
+
+void* Rocks_CreateDefaultImage(Rocks* rocks) {
     Texture2D* texture = malloc(sizeof(Texture2D));
     if (!texture) return NULL;
     
-    *texture = LoadTexture(path);
-    if (texture->id == 0) {
-        free(texture);
-        return NULL;
-    }
+    // Create a small colored square as default
+    Image defaultImage = GenImageColor(64, 64, PURPLE);
+    *texture = LoadTextureFromImage(defaultImage);
+    UnloadImage(defaultImage);
     
     return texture;
 }
 
+static Image LoadImageSVG(const char *fileName, int width, int height)
+{
+    Image image = { 0 };
+
+    if (!fileName) {
+        TraceLog(LOG_WARNING, "SVG: Null filename");
+        return image;
+    }
+
+    if ((strcmp(GetFileExtension(fileName), ".svg") == 0) ||
+        (strcmp(GetFileExtension(fileName), ".SVG") == 0))
+    {
+        int dataSize = 0;
+        unsigned char *fileData = LoadFileData(fileName, &dataSize);
+        if (!fileData) {
+            TraceLog(LOG_WARNING, "SVG: Failed to load file data");
+            return image;
+        }
+
+        TraceLog(LOG_INFO, "SVG: Loaded file data, size: %d", dataSize);
+
+        // Make sure the file data contains an EOL character: '\0'
+        if ((dataSize > 0) && (fileData[dataSize - 1] != '\0'))
+        {
+            unsigned char* newData = RL_REALLOC(fileData, dataSize + 1);
+            if (!newData) {
+                TraceLog(LOG_WARNING, "SVG: Failed to reallocate for null termination");
+                UnloadFileData(fileData);
+                return image;
+            }
+            fileData = newData;
+            fileData[dataSize] = '\0';
+            dataSize += 1;
+        }
+
+        // Print first few bytes for debugging
+        TraceLog(LOG_INFO, "SVG: First 10 bytes: %c%c%c%c%c%c%c%c%c%c", 
+                fileData[0], fileData[1], fileData[2], fileData[3], fileData[4],
+                fileData[5], fileData[6], fileData[7], fileData[8], fileData[9]);
+
+        // Look for <svg> tag anywhere in the file
+        const char* svgStart = strstr((char*)fileData, "<svg");
+        if (svgStart) {
+            TraceLog(LOG_INFO, "SVG: Found <svg> tag");
+            struct NSVGimage *svgImage = nsvgParse((char*)fileData, "px", 96.0f);
+            if (!svgImage) {
+                TraceLog(LOG_WARNING, "SVG: Failed to parse SVG data");
+                UnloadFileData(fileData);
+                return image;
+            }
+
+            TraceLog(LOG_INFO, "SVG: Parsed successfully, dimensions: %fx%f", 
+                    svgImage->width, svgImage->height);
+
+            unsigned char *imgData = RL_MALLOC(svgImage->width*svgImage->height*4);
+            if (!imgData) {
+                TraceLog(LOG_WARNING, "SVG: Failed to allocate image data");
+                nsvgDelete(svgImage);
+                UnloadFileData(fileData);
+                return image;
+            }
+
+            struct NSVGrasterizer *rast = nsvgCreateRasterizer();
+            if (!rast) {
+                TraceLog(LOG_WARNING, "SVG: Failed to create rasterizer");
+                RL_FREE(imgData);
+                nsvgDelete(svgImage);
+                UnloadFileData(fileData);
+                return image;
+            }
+
+            // NOTE: If required width or height is 0, using default SVG internal value
+            if (width == 0) width = svgImage->width;
+            if (height == 0) height = svgImage->height;
+
+            float scaleWidth = width/svgImage->width;
+            float scaleHeight = height/svgImage->height;
+            float scale = (scaleHeight > scaleWidth)? scaleWidth : scaleHeight;
+
+            int offsetX = 0;
+            int offsetY = 0;
+
+            if (scaleHeight > scaleWidth) offsetY = (height - svgImage->height*scale)/2;
+            else offsetX = (width - svgImage->width*scale)/2;
+
+            nsvgRasterize(rast, svgImage, offsetX, offsetY, scale, imgData, 
+                         width, height, width*4);
+
+            TraceLog(LOG_INFO, "SVG: Rasterized to %dx%d", width, height);
+
+            image.data = imgData;
+            image.width = width;
+            image.height = height;
+            image.mipmaps = 1;
+            image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+
+            nsvgDeleteRasterizer(rast);
+            nsvgDelete(svgImage);
+        } else {
+            TraceLog(LOG_WARNING, "SVG: No <svg> tag found in file");
+        }
+
+        UnloadFileData(fileData);
+    }
+
+    return image;
+}
+
+void* Rocks_LoadImageRaylib(Rocks* rocks, const char* path) {
+    if (!path) return Rocks_CreateDefaultImage(rocks);
+    
+    Texture2D* texture = malloc(sizeof(Texture2D));
+    if (!texture) return Rocks_CreateDefaultImage(rocks);
+
+    // Check if it's an SVG file
+    if ((strcmp(GetFileExtension(path), ".svg") == 0) ||
+        (strcmp(GetFileExtension(path), ".SVG") == 0)) {
+        
+        // Load SVG image using default size (width/height = 0)
+        Image image = LoadImageSVG(path, 0, 0);
+        if (!image.data) {
+            free(texture);
+            TraceLog(LOG_WARNING, "Failed to load SVG: %s", path);
+            return Rocks_CreateDefaultImage(rocks);
+        }
+        
+        *texture = LoadTextureFromImage(image);
+        UnloadImage(image);
+        
+    } else {
+        // Regular image loading
+        Image image = LoadImage(path);
+        if (!image.data) {
+            free(texture);
+            TraceLog(LOG_WARNING, "Failed to load image: %s", path);
+            return Rocks_CreateDefaultImage(rocks);
+        }
+        
+        *texture = LoadTextureFromImage(image);
+        UnloadImage(image);
+    }
+
+    if (texture->id == 0) {
+        free(texture);
+        TraceLog(LOG_WARNING, "Failed to create texture: %s", path);
+        return Rocks_CreateDefaultImage(rocks);
+    }
+    
+    return texture;
+}
+void* Rocks_LoadImageFromMemoryRaylib(Rocks* rocks, const char* data, size_t length) {
+    if (!data || length == 0) return Rocks_CreateDefaultImage(rocks);
+    
+    Texture2D* texture = malloc(sizeof(Texture2D));
+    if (!texture) return Rocks_CreateDefaultImage(rocks);
+
+    // First try to parse it as SVG
+    if ((length > 4) && (data[0] == '<') && (data[1] == 's') && 
+        (data[2] == 'v') && (data[3] == 'g')) 
+    {
+        // Make sure string is null-terminated
+        char* svgData = malloc(length + 1);
+        if (!svgData) {
+            free(texture);
+            return Rocks_CreateDefaultImage(rocks);
+        }
+        
+        memcpy(svgData, data, length);
+        svgData[length] = '\0';
+
+        struct NSVGimage* svgImage = nsvgParse(svgData, "px", 96.0f);
+        free(svgData);
+
+        if (svgImage) {
+            unsigned char* imgData = malloc(svgImage->width * svgImage->height * 4);
+            if (imgData) {
+                struct NSVGrasterizer* rast = nsvgCreateRasterizer();
+                if (rast) {
+                    nsvgRasterize(rast, svgImage, 0, 0, 1.0f, imgData, 
+                                svgImage->width, svgImage->height, 
+                                svgImage->width * 4);
+
+                    Image image = {
+                        .data = imgData,
+                        .width = svgImage->width,
+                        .height = svgImage->height,
+                        .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
+                        .mipmaps = 1
+                    };
+
+                    *texture = LoadTextureFromImage(image);
+                    
+                    nsvgDeleteRasterizer(rast);
+                    UnloadImage(image);  // This also frees imgData
+                    nsvgDelete(svgImage);
+                    
+                    if (texture->id != 0) return texture;
+                }
+                else free(imgData);
+            }
+            nsvgDelete(svgImage);
+        }
+    }
+
+    // Try normal image formats if SVG parsing failed
+    Image image = LoadImageFromMemory(".png", (const unsigned char*)data, length);
+    if (!image.data) {
+        image = LoadImageFromMemory(".jpg", (const unsigned char*)data, length);
+    }
+    
+    if (!image.data) {
+        free(texture);
+        return Rocks_CreateDefaultImage(rocks);
+    }
+    
+    *texture = LoadTextureFromImage(image);
+    UnloadImage(image);
+    
+    if (texture->id == 0) {
+        free(texture);
+        return Rocks_CreateDefaultImage(rocks);
+    }
+    
+    return texture;
+}
 void Rocks_UnloadImageRaylib(Rocks* rocks, void* image_data) {
     if (!image_data) return;
     Texture2D* texture = (Texture2D*)image_data;
