@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background -->
+    <rect width="400" height="300" fill="#f0f0f0"/>
+    
+    <!-- Circle -->
+    <circle cx="200" cy="150" r="50" fill="#4287f5"/>
+    
+    <!-- Triangles -->
+    <polygon points="100,200 150,100 200,200" fill="#f54242"/>
+    <polygon points="300,200 250,100 200,200" fill="#42f554"/>
+    
+    <!-- Bottom line -->
+    <line x1="50" y1="250" x2="350" y2="250" 
+          stroke="#333" stroke-width="4"/>
+</svg>
