@@ -20,17 +20,18 @@ NANOSVG_DIR = $(VENDOR_DIR)/nanosvg/src
 CMARK_DIR = $(VENDOR_DIR)/cmark
 CMARK_SRC_DIR = $(CMARK_DIR)/src
 CMARK_BUILD_DIR = $(CMARK_DIR)/build
+CMARK_INCLUDE_DIR = $(CMARK_BUILD_DIR)/src  # Add this for generated headers
 
 # SDL2 specific
 SDL_BUILD_DIR = $(BUILD_DIR)/sdl
-SDL_FLAGS = $(shell pkg-config --cflags sdl2 SDL2_ttf SDL2_image SDL2_gfx)
-SDL_LIBS = $(shell pkg-config --libs sdl2 SDL2_ttf SDL2_image SDL2_gfx)
+SDL_FLAGS = $(shell pkg-config --cflags sdl2 SDL2_ttf SDL2_image SDL2_gfx) -I$(CMARK_SRC_DIR) -I$(CMARK_INCLUDE_DIR)
+SDL_LIBS = $(shell pkg-config --libs sdl2 SDL2_ttf SDL2_image SDL2_gfx) -L$(CMARK_BUILD_DIR)/src -lcmark
 SDL_DEFINES = -DROCKS_USE_SDL2
 
 # Raylib specific
 RAYLIB_BUILD_DIR = $(BUILD_DIR)/raylib
-RAYLIB_FLAGS = $(shell pkg-config --cflags raylib) -I$(CMARK_SRC_DIR)
-RAYLIB_LIBS = $(shell pkg-config --libs raylib) -L$(CMARK_BUILD_DIR) -lcmark
+RAYLIB_FLAGS = $(shell pkg-config --cflags raylib) -I$(CMARK_SRC_DIR) -I$(CMARK_INCLUDE_DIR)
+RAYLIB_LIBS = $(shell pkg-config --libs raylib) -L$(CMARK_BUILD_DIR)/src -lcmark
 RAYLIB_DEFINES = -DROCKS_USE_RAYLIB
 
 # Common flags
@@ -60,49 +61,49 @@ RAYLIB_OBJS = $(MAIN_SRCS:$(SRC_DIR)/%.c=$(RAYLIB_BUILD_DIR)/%.o) \
 
 all: sdl raylib
 
-# SDL2 build (unchanged, assuming no cmark dependency)
-sdl: $(SDL_BUILD_DIR)/librocks.a examples_sdl
+# SDL2 build
+sdl: $(CMARK_BUILD_DIR)/src/libcmark.a $(SDL_BUILD_DIR)/librocks.a examples_sdl
 
 $(SDL_BUILD_DIR)/librocks.a: $(SDL_OBJS)
 	$(MKDIR) $(SDL_BUILD_DIR)
 	$(AR) rcs $@ $^
 
-$(SDL_BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+$(SDL_BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(CMARK_BUILD_DIR)/src/libcmark.a
 	$(MKDIR) $(SDL_BUILD_DIR)
 	$(CC) $(SDL_FLAGS) $(COMMON_FLAGS) $(SDL_DEFINES) -c $< -o $@
 
-$(SDL_BUILD_DIR)/%.o: $(COMPONENTS_DIR)/%.c
+$(SDL_BUILD_DIR)/%.o: $(COMPONENTS_DIR)/%.c | $(CMARK_BUILD_DIR)/src/libcmark.a
 	$(MKDIR) $(SDL_BUILD_DIR)
 	$(CC) $(SDL_FLAGS) $(COMMON_FLAGS) $(SDL_DEFINES) -c $< -o $@
 
-$(SDL_BUILD_DIR)/%.o: $(RENDERER_DIR)/%.c
+$(SDL_BUILD_DIR)/%.o: $(RENDERER_DIR)/%.c | $(CMARK_BUILD_DIR)/src/libcmark.a
 	$(MKDIR) $(SDL_BUILD_DIR)
 	$(CC) $(SDL_FLAGS) $(COMMON_FLAGS) $(SDL_DEFINES) -c $< -o $@
 
 # Raylib build
-raylib: $(RAYLIB_BUILD_DIR)/librocks.a examples_raylib
+raylib: $(CMARK_BUILD_DIR)/src/libcmark.a $(RAYLIB_BUILD_DIR)/librocks.a examples_raylib
 
 $(RAYLIB_BUILD_DIR)/librocks.a: $(RAYLIB_OBJS)
 	$(MKDIR) $(RAYLIB_BUILD_DIR)
 	$(AR) rcs $@ $^
 
-$(RAYLIB_BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+$(RAYLIB_BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(CMARK_BUILD_DIR)/src/libcmark.a
 	$(MKDIR) $(RAYLIB_BUILD_DIR)
 	$(CC) $(RAYLIB_FLAGS) $(COMMON_FLAGS) $(RAYLIB_DEFINES) -c $< -o $@
 
-$(RAYLIB_BUILD_DIR)/%.o: $(COMPONENTS_DIR)/%.c
+$(RAYLIB_BUILD_DIR)/%.o: $(COMPONENTS_DIR)/%.c | $(CMARK_BUILD_DIR)/src/libcmark.a
 	$(MKDIR) $(RAYLIB_BUILD_DIR)
 	$(CC) $(RAYLIB_FLAGS) $(COMMON_FLAGS) $(RAYLIB_DEFINES) -c $< -o $@
 
-$(RAYLIB_BUILD_DIR)/%.o: $(RENDERER_DIR)/%.c
+$(RAYLIB_BUILD_DIR)/%.o: $(RENDERER_DIR)/%.c | $(CMARK_BUILD_DIR)/src/libcmark.a
 	$(MKDIR) $(RAYLIB_BUILD_DIR)
 	$(CC) $(RAYLIB_FLAGS) $(COMMON_FLAGS) $(RAYLIB_DEFINES) -c $< -o $@
 
 # Build cmark static library
-$(CMARK_BUILD_DIR)/libcmark.a:
+$(CMARK_BUILD_DIR)/src/libcmark.a:
 	$(MKDIR) $(CMARK_BUILD_DIR)
-	cd $(CMARK_BUILD_DIR) && cmake -DCMARK_TESTS=OFF -DBUILD_SHARED_LIBS=OFF ..
-	cd $(CMARK_BUILD_DIR) && cmake --build . --target cmark
+	cd $(CMARK_DIR) && cmake -S . -B build -DCMARK_TESTS=OFF -DCMARK_SHARED=OFF
+	cd $(CMARK_BUILD_DIR) && make
 
 # Examples
 examples_sdl: $(SDL_BUILD_DIR)/librocks.a
@@ -115,7 +116,7 @@ examples_sdl: $(SDL_BUILD_DIR)/librocks.a
 	if [ -d "$(ASSETS_DIR)" ]; then $(CP) $(ASSETS_DIR) $(SDL_BUILD_DIR)/; fi
 	if [ -d "$(CONTENT_DIR)" ]; then $(CP) $(CONTENT_DIR) $(SDL_BUILD_DIR)/; fi
 
-examples_raylib: $(RAYLIB_BUILD_DIR)/librocks.a $(CMARK_BUILD_DIR)/libcmark.a
+examples_raylib: $(RAYLIB_BUILD_DIR)/librocks.a $(CMARK_BUILD_DIR)/src/libcmark.a
 	$(MKDIR) $(RAYLIB_BUILD_DIR)
 	for example in $(EXAMPLES); do \
 		$(CC) $(EXAMPLES_DIR)/$$example.c -o $(RAYLIB_BUILD_DIR)/$$example \
@@ -129,3 +130,4 @@ examples_raylib: $(RAYLIB_BUILD_DIR)/librocks.a $(CMARK_BUILD_DIR)/libcmark.a
 clean:
 	$(RM) $(BUILD_DIR)
 	$(RM) $(CMARK_BUILD_DIR)
+	

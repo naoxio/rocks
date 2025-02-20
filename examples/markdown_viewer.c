@@ -26,7 +26,6 @@ static void custom_markdown_renderer(cmark_node* node, void* user_data) {
             }
         }) {
             static char text_buffer[1024];
-            snprintf(text_buffer, sizeof(text_buffer), "%s", link_text ? link_text : "");
             size_t text_length = strlen(text_buffer);
             const Clay_String clay_text = (Clay_String){ .length = text_length, .chars = text_buffer };
             CLAY_TEXT(
@@ -46,13 +45,11 @@ static bool load_resources(Rocks* rocks) {
     // Load fonts for base text and code blocks
     g_font_ids[FONT_BASE] = Rocks_LoadFont("assets/OpenSans-Regular.ttf", 16, FONT_BASE);
     if (g_font_ids[FONT_BASE] == UINT16_MAX) {
-        printf("Failed to load base font\n");
         return false;
     }
 
     g_font_ids[FONT_CODE] = Rocks_LoadFont("assets/CourierPrime-Regular.ttf", 14, FONT_CODE);
     if (g_font_ids[FONT_CODE] == UINT16_MAX) {
-        printf("Failed to load code font\n");
         Rocks_UnloadFont(g_font_ids[FONT_BASE]);
         return false;
     }
@@ -64,7 +61,6 @@ static bool load_resources(Rocks* rocks) {
     );
 
     if (!g_markdown_viewer) {
-        printf("Failed to create Markdown viewer\n");
         Rocks_UnloadFont(g_font_ids[FONT_BASE]);
         Rocks_UnloadFont(g_font_ids[FONT_CODE]);
         return false;

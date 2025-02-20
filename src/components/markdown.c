@@ -25,11 +25,9 @@ static char* read_file_contents(const char* filepath) {
 }
 static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* viewer) {
     Rocks_Theme theme = Rocks_GetTheme(GRocks);
-    printf("Processing node type: %d\n", cmark_node_get_type(node));
 
     switch (cmark_node_get_type(node)) {
         case CMARK_NODE_DOCUMENT:
-            printf("Document - traversing children\n");
             for (cmark_node* child = cmark_node_first_child(node); child; child = cmark_node_next(child)) {
                 convert_markdown_node_to_clay(child, viewer);
             }
@@ -39,13 +37,11 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
             int level = cmark_node_get_heading_level(node);
             cmark_node* text_node = cmark_node_first_child(node);
             const char* heading_text = (text_node && cmark_node_get_type(text_node) == CMARK_NODE_TEXT) ? cmark_node_get_literal(text_node) : NULL;
-            printf("Heading level %d: '%s'\n", level, heading_text ? heading_text : "(null)");
             if (heading_text) {
                 CLAY({
                     .layout = { .sizing = CLAY_SIZING_FIT(0), .padding = CLAY_PADDING_ALL(10) }
                 }) {
                     static char text_buffer[1024];
-                    snprintf(text_buffer, sizeof(text_buffer), "%s", heading_text);
                     size_t text_length = strlen(text_buffer);
                     const Clay_String clay_heading_text = (Clay_String){ .length = text_length, .chars = text_buffer };                
                     CLAY_TEXT(
@@ -56,7 +52,6 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
                             .fontId = viewer->config.base_font_id
                         })
                     );
-                    printf("Added heading Clay text\n");
                 }
             }
             break;
@@ -65,13 +60,11 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
         case CMARK_NODE_PARAGRAPH: {
             cmark_node* text_node = cmark_node_first_child(node);
             const char* paragraph_text = (text_node && cmark_node_get_type(text_node) == CMARK_NODE_TEXT) ? cmark_node_get_literal(text_node) : NULL;
-            printf("Paragraph: '%s'\n", paragraph_text ? paragraph_text : "(null)");
             if (paragraph_text) {
                 CLAY({
                     .layout = { .sizing = CLAY_SIZING_FIT(0), .padding = CLAY_PADDING_ALL(5) }
                 }) {
                     static char text_buffer[1024];
-                    snprintf(text_buffer, sizeof(text_buffer), "%s", paragraph_text);
                     size_t text_length = strlen(text_buffer);
                     const Clay_String clay_paragraph_text = (Clay_String){ .length = text_length, .chars = text_buffer };
                     CLAY_TEXT(
@@ -82,7 +75,6 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
                             .fontId = viewer->config.base_font_id
                         })
                     );
-                    printf("Added paragraph Clay text\n");
                 }
             }
             break;
@@ -90,7 +82,6 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
         
         case CMARK_NODE_CODE_BLOCK: {
             const char* code_text = cmark_node_get_literal(node);
-            printf("Code block: '%s'\n", code_text ? code_text : "(null)");
             if (code_text && strlen(code_text) > 0) {
                 CLAY({
                     .layout = { .sizing = CLAY_SIZING_FIT(0), .padding = CLAY_PADDING_ALL(10) },
@@ -98,7 +89,6 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
                     .cornerRadius = CLAY_CORNER_RADIUS(4)
                 }) {
                     static char text_buffer[1024];
-                    snprintf(text_buffer, sizeof(text_buffer), "%s", code_text);
                     size_t text_length = strlen(text_buffer);
                     const Clay_String clay_code_text = (Clay_String){ .length = text_length, .chars = text_buffer };
                     CLAY_TEXT(
@@ -110,7 +100,6 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
                             .wrapMode = CLAY_TEXT_WRAP_NONE
                         })
                     );
-                    printf("Added code block Clay text\n");
                 }
             }
             break;
@@ -118,7 +107,6 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
         
         case CMARK_NODE_LIST: {
             bool is_ordered = cmark_node_get_list_type(node) == CMARK_ORDERED_LIST;
-            printf("List (ordered: %d)\n", is_ordered);
             CLAY({
                 .layout = { 
                     .sizing = CLAY_SIZING_FIT(0),
@@ -139,7 +127,6 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
                 text_node = cmark_node_first_child(text_node);
             }
             const char* item_text = (text_node && cmark_node_get_type(text_node) == CMARK_NODE_TEXT) ? cmark_node_get_literal(text_node) : NULL;
-            printf("List item: '%s'\n", item_text ? item_text : "(null)");
             if (item_text) {
                 CLAY({
                     .layout = { .sizing = CLAY_SIZING_FIT(0), .padding = { .left = 20 } }
@@ -152,7 +139,6 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
                         })
                     );
                     static char text_buffer[1024];
-                    snprintf(text_buffer, sizeof(text_buffer), "%s", item_text);
                     size_t text_length = strlen(text_buffer);
                     const Clay_String clay_text = (Clay_String){ .length = text_length, .chars = text_buffer };
                     CLAY_TEXT(
@@ -162,7 +148,6 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
                             .fontId = viewer->config.base_font_id
                         })
                     );
-                    printf("Added list item Clay text\n");
                 }
             }
             break;
@@ -173,13 +158,11 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
             for (cmark_node* child = cmark_node_first_child(node); child; child = cmark_node_next(child)) {
                 if (cmark_node_get_type(child) == CMARK_NODE_TEXT) {
                     const char* text = cmark_node_get_literal(child);
-                    printf("%s: '%s'\n", cmark_node_get_type(node) == CMARK_NODE_STRONG ? "Bold" : "Italic", text ? text : "(null)");
                     if (text) {
                         CLAY({
                             .layout = { .sizing = CLAY_SIZING_FIT(0), .padding = CLAY_PADDING_ALL(5) }
                         }) {
                             static char text_buffer[1024];
-                            snprintf(text_buffer, sizeof(text_buffer), "%s", text);
                             size_t text_length = strlen(text_buffer);
                             const Clay_String clay_text = (Clay_String){ .length = text_length, .chars = text_buffer };
                             CLAY_TEXT(
@@ -190,7 +173,6 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
                                     .fontId = viewer->config.base_font_id
                                 })
                             );
-                            printf("Added %s Clay text\n", cmark_node_get_type(node) == CMARK_NODE_STRONG ? "bold" : "italic");
                         }
                     }
                 }
@@ -198,12 +180,10 @@ static void convert_markdown_node_to_clay(cmark_node* node, Rocks_Markdown* view
             break;
 
         default:
-            printf("Unhandled node type: %d\n", cmark_node_get_type(node));
             break;
     }
 
     if (viewer->custom_renderer) {
-        printf("Custom renderer for node type: %d\n", cmark_node_get_type(node));
         viewer->custom_renderer(node, viewer->custom_renderer_data);
     }
 }
@@ -251,18 +231,15 @@ bool Rocks_LoadMarkdownFromString(
 
 void Rocks_RenderMarkdown(Rocks_Markdown* viewer) {
     if (!viewer || !viewer->markdown_text) {
-        printf("No viewer or markdown text\n");
         return;
     }
 
-    printf("Parsing markdown: '%s'\n", viewer->markdown_text);
     cmark_node* root = cmark_parse_document(
         viewer->markdown_text, 
         strlen(viewer->markdown_text), 
         CMARK_OPT_DEFAULT
     );
     if (!root) {
-        printf("Failed to parse markdown\n");
         return;
     }
 
