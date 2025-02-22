@@ -1,18 +1,106 @@
 #include "renderer/sdl2_renderer.h"
 #include "renderer/sdl2_renderer_utils.h"
 
+#define NANOSVG_IMPLEMENTATION 
+#include "nanosvg.h"
+#define NANOSVGRAST_IMPLEMENTATION
+#include "nanosvgrast.h"
+
 void* Rocks_LoadImageSDL2(Rocks* rocks, const char* path) {
     Rocks_SDL2Renderer* r = rocks->renderer_data;
-    if (!r || !r->renderer) return NULL;
+    if (!r || !r->renderer || !path) return NULL;
 
-    SDL_Surface* surface = IMG_Load(path);
-    if (!surface) {
-        printf("Failed to load image: %s\n", IMG_GetError());
-        return NULL;
+    SDL_Surface* surface = NULL;
+
+    // Check if the file is an SVG by extension
+    const char* ext = strrchr(path, '.');
+    if (ext && (strcasecmp(ext, ".svg") == 0)) {
+        // Load SVG file data
+        FILE* file = fopen(path, "rb");
+        if (!file) {
+            printf("Failed to open SVG file: %s\n", path);
+            return NULL;
+        }
+
+        fseek(file, 0, SEEK_END);
+        long fileSize = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        char* fileData = malloc(fileSize + 1);
+        if (!fileData) {
+            fclose(file);
+            return NULL;
+        }
+
+        fread(fileData, 1, fileSize, file);
+        fileData[fileSize] = '\0';
+        fclose(file);
+
+        // Parse SVG
+        struct NSVGimage* svgImage = nsvgParse(fileData, "px", 96.0f);
+        free(fileData);
+
+        if (!svgImage) {
+            printf("Failed to parse SVG file: %s\n", path);
+            return NULL;
+        }
+
+        // Rasterize SVG
+        int width = (int)svgImage->width;
+        int height = (int)svgImage->height;
+        unsigned char* imgData = malloc(width * height * 4);
+        if (!imgData) {
+            nsvgDelete(svgImage);
+            return NULL;
+        }
+
+        struct NSVGrasterizer* rast = nsvgCreateRasterizer();
+        if (!rast) {
+            free(imgData);
+            nsvgDelete(svgImage);
+            return NULL;
+        }
+
+        nsvgRasterize(rast, svgImage, 0, 0, 1.0f, imgData, width, height, width * 4);
+
+        // Create SDL surface from rasterized data
+        surface = SDL_CreateRGBSurfaceFrom(
+            imgData,
+            width,
+            height,
+            32,
+            width * 4,
+            0x000000FF,
+            0x0000FF00,
+            0x00FF0000,
+            0xFF000000
+        );
+
+        nsvgDeleteRasterizer(rast);
+        nsvgDelete(svgImage);
+
+        if (!surface) {
+            free(imgData);
+            printf("Failed to create SDL surface from SVG: %s\n", SDL_GetError());
+            return NULL;
+        }
+    } else {
+        // Load non-SVG image using SDL_image
+        surface = IMG_Load(path);
+        if (!surface) {
+            printf("Failed to load image: %s - %s\n", path, IMG_GetError());
+            return NULL;
+        }
     }
 
+    // Convert surface to texture
     SDL_Texture* texture = SDL_CreateTextureFromSurface(r->renderer, surface);
     SDL_FreeSurface(surface);
+
+    // If SVG, free the rasterized data (SDL_CreateRGBSurfaceFrom doesn't copy it)
+    if (ext && (strcasecmp(ext, ".svg") == 0)) {
+        free(surface->pixels);
+    }
 
     if (!texture) {
         printf("Failed to create texture: %s\n", SDL_GetError());
@@ -21,6 +109,103 @@ void* Rocks_LoadImageSDL2(Rocks* rocks, const char* path) {
 
     return texture;
 }
+void* Rocks_LoadImageFromMemorySDL2(Rocks* rocks, const char* data, size_t length) {
+    if (!rocks || !data || length == 0) return NULL;
+
+    Rocks_SDL2Renderer* r = rocks->renderer_data;
+    if (!r || !r->renderer) return NULL;
+
+    SDL_Surface* surface = NULL;
+
+    // Try to parse as SVG first
+    if (length > 4 && data[0] == '<' && data[1] == 's' && data[2] == 'v' && data[3] == 'g') {
+        // Ensure null-terminated string for nanosvg
+        char* svgData = malloc(length + 1);
+        if (!svgData) return NULL;
+        
+        memcpy(svgData, data, length);
+        svgData[length] = '\0';
+
+        struct NSVGimage* svgImage = nsvgParse(svgData, "px", 96.0f);
+        free(svgData);
+
+        if (!svgImage) {
+            printf("Failed to parse SVG from memory\n");
+            return NULL;
+        }
+
+        // Allocate memory for rasterized image
+        int width = (int)svgImage->width;
+        int height = (int)svgImage->height;
+        unsigned char* imgData = malloc(width * height * 4);
+        if (!imgData) {
+            nsvgDelete(svgImage);
+            return NULL;
+        }
+
+        struct NSVGrasterizer* rast = nsvgCreateRasterizer();
+        if (!rast) {
+            free(imgData);
+            nsvgDelete(svgImage);
+            return NULL;
+        }
+
+        // Rasterize SVG
+        nsvgRasterize(rast, svgImage, 0, 0, 1.0f, imgData, width, height, width * 4);
+
+        // Create SDL surface from rasterized data
+        surface = SDL_CreateRGBSurfaceFrom(
+            imgData,
+            width,
+            height,
+            32,
+            width * 4,
+            0x000000FF,
+            0x0000FF00,
+            0x00FF0000,
+            0xFF000000
+        );
+
+        nsvgDeleteRasterizer(rast);
+        nsvgDelete(svgImage);
+
+        if (!surface) {
+            free(imgData);
+            printf("Failed to create SDL surface from SVG: %s\n", SDL_GetError());
+            return NULL;
+        }
+    } else {
+        // Try loading as a regular image (e.g., PNG/JPG) using SDL_image
+        SDL_RWops* rw = SDL_RWFromConstMem(data, length);
+        if (!rw) {
+            printf("Failed to create RWops from memory: %s\n", SDL_GetError());
+            return NULL;
+        }
+
+        surface = IMG_Load_RW(rw, 1); // 1 means RWops will be freed
+        if (!surface) {
+            printf("Failed to load image from memory: %s\n", IMG_GetError());
+            return NULL;
+        }
+    }
+
+    // Convert surface to texture
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(r->renderer, surface);
+    SDL_FreeSurface(surface);
+
+    // If SVG, free the rasterized data (SDL_CreateRGBSurfaceFrom doesn't copy it)
+    if (surface && (length > 4 && data[0] == '<' && data[1] == 's' && data[2] == 'v' && data[3] == 'g')) {
+        free(surface->pixels);
+    }
+
+    if (!texture) {
+        printf("Failed to create texture from memory: %s\n", SDL_GetError());
+        return NULL;
+    }
+
+    return texture;
+}
+
 
 void Rocks_UnloadImageSDL2(Rocks* rocks, void* image_data) {
     if (!image_data) return;

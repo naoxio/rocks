@@ -76,6 +76,8 @@ void Rocks_ProcessEventsSDL2(Rocks* rocks);
 void Rocks_ToggleFullscreenSDL2(Rocks* rocks);
 void Rocks_SetWindowSizeSDL2(Rocks* rocks, int width, int height);
 
+void* Rocks_LoadImageFromMemorySDL2(Rocks* rocks, const char* data, size_t length);
+
 void* Rocks_LoadImageSDL2(Rocks* rocks, const char* path);
 void Rocks_UnloadImageSDL2(Rocks* rocks, void* image_data);
 Clay_Dimensions Rocks_GetImageDimensionsSDL2(Rocks* rocks, void* image_data);
